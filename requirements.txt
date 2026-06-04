@@ -1,0 +1,4 @@
+boto3>=1.34
+httplib2>=0.22
+pydicom>=2.4
+pynetdicom>=2.0

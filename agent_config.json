@@ -1,0 +1,47 @@
+{
+  "viewer_url": "http://127.0.0.1:8080",
+  "environment": "test",
+  "agent_id": "hospital-agent",
+  "description": "операционная №2",
+  "log_dir": "logs/agent",
+  "state_file": "logs/agent/state.json",
+  "request_timeout_seconds": 30,
+  "alive_polling_interval_min": 5,
+  "pacs_config_path": "config.json",
+  "ct_polling": {
+    "state": false,
+    "work_option": "on_request",
+    "interval_min": 10,
+    "on_time": "07:30",
+    "period": "today",
+    "endpoint": "/ct_studies"
+  },
+  "xa_polling": {
+    "state": false,
+    "work_option": "on_request",
+    "interval_min": 10,
+    "on_time": "07:30",
+    "period": "today",
+    "endpoint": "/xa_studies"
+  },
+  "study_polling": {
+    "state": false,
+    "work_option": "interval",
+    "interval_min": 10,
+    "on_time": "07:30",
+    "endpoint": "/studies",
+    "operations_dir": [
+      "C:\\Users\\Angio_hir1\\Desktop\\Операции 2026",
+      "C:\\Users\\Angio_hir1\\Desktop\\2026 Опер №2"
+    ]
+  },
+  "environments": {
+    "prod": {},
+    "dev": {},
+    "test": {
+      "study_polling": {
+        "operations_dir": "C:\\Операции\\testing"
+      }
+    }
+  }
+}

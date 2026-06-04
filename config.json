@@ -1,0 +1,22 @@
+{
+    "pacs": {
+        "ip": "pacs2022.okb.local",
+        "port": 11112,
+        "ae_title": "PACSOKB"
+    },
+    "mapdrpacs": {
+        "ip": "178.72.165.60",
+        "port": 4242,
+        "ae_title": "MAPDR"
+    },
+    "local": {
+        "ae_title": "RADIANT",
+        "output_dir": "./dicom",
+        "log_dir": "./logs",
+        "dimse_timeout": 300,
+        "acse_timeout": 30,
+        "network_timeout": 15,
+        "retry_attempts": 3,
+        "retry_delay": 5
+    }
+}

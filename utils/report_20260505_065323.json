@@ -1,0 +1,125 @@
+{
+  "date": "05.05.2026",
+  "period_days": 1,
+  "period_start": "04.05.2026 08:00",
+  "period_end": "05.05.2026 08:00",
+  "planned_count": 1,
+  "emergency_total": 4,
+  "today_planned_count": 6,
+  "planned_operations": [
+    {
+      "patient": "Пантелеев И.И.",
+      "age": "69",
+      "department": "кардио №2",
+      "operation": "БАП со стентм из а стЛКА в ОА.",
+      "time_beginnig": "13:00",
+      "time_duration": "40",
+      "surgeon": "Старков А.С."
+    }
+  ],
+  "emergency_operations": [
+    {
+      "patient": "Лопатин В.В.",
+      "age": "77",
+      "department": "кардио №1",
+      "operation": "КАГ.",
+      "time_beginnig": "18:10",
+      "time_duration": "10",
+      "surgeon": "Идрисов М.З."
+    },
+    {
+      "patient": "Размазин Ф.Н.",
+      "age": "70",
+      "department": "кардио №1",
+      "operation": "КАГ.. стент рестеноза в стенте проксимального сегмента ПНА Xience Xpedition 3.0x48мм",
+      "time_beginnig": "17:30",
+      "time_duration": "20",
+      "surgeon": "Идрисов М.З."
+    },
+    {
+      "patient": "Чернов Ю.Н.",
+      "age": "72",
+      "department": "кардио №1",
+      "operation": "КАГ.. стент ПКА коронарной Tetrilimus 3.0x32мм 12атм и Tetrilimus 3.5x24мм и ПНА Xience Xpedition...",
+      "time_beginnig": "16:20",
+      "time_duration": "50",
+      "surgeon": "Идрисов М.З."
+    },
+    {
+      "patient": "Кириллова А.Ю.",
+      "age": "65",
+      "department": "пит рсц",
+      "operation": "ЦАГ.",
+      "time_beginnig": "19:35",
+      "time_duration": "15",
+      "surgeon": "Идрисов М.З."
+    }
+  ],
+  "today_planned_operations": [
+    {
+      "patient": "Проняшкин А.А.",
+      "age": "",
+      "department": "кардио",
+      "operation": "каг",
+      "previous_operations": []
+    },
+    {
+      "patient": "Гузеев С.В.",
+      "age": "",
+      "department": "кардио",
+      "operation": "каг",
+      "previous_operations": []
+    },
+    {
+      "patient": "Кондратьев В.А.",
+      "age": "",
+      "department": "кардио",
+      "operation": "каг на стент пна (каг от 25.12.25)",
+      "previous_operations": [
+        {
+          "date": "25.12.2025",
+          "operation": "КАГ.",
+          "description": "Правый тип кровоснабжения. Выраженный атеросклероз коронарных. Отмечается стеноз 30% а стЛКА. Виз...",
+          "recomendation": "",
+          "surgeon": "Старков А.С."
+        }
+      ]
+    },
+    {
+      "patient": "Трифонова Т.Т.",
+      "age": "",
+      "department": "сх",
+      "operation": "гибрид подколенка и берцы",
+      "previous_operations": [
+        {
+          "date": "23.04.2026",
+          "operation": "стент общей подвздошной прав",
+          "description": "Стеноз 80% ОПА прав после стентирования остаточный стеноз = 0%.",
+          "recomendation": "",
+          "surgeon": "Киргизов А.А."
+        },
+        {
+          "date": "15.04.2026",
+          "operation": "КАГ.",
+          "description": "смешанный тип кровоснабжения. Атеросклероз коронарных. ПКА артерия протяженная хроническая в сред...",
+          "recomendation": "",
+          "surgeon": "Киргизов А.А."
+        }
+      ]
+    },
+    {
+      "patient": "Юпатов А.К.",
+      "age": "",
+      "department": "сх",
+      "operation": "стент почечной",
+      "previous_operations": []
+    },
+    {
+      "patient": "Ежов Д.С.",
+      "age": "",
+      "department": "хгд",
+      "operation": "флебограф подклюки/яремн прав и лев",
+      "previous_operations": []
+    }
+  ]
+}
