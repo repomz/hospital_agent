@@ -159,6 +159,16 @@ pythonw hospital_agent.py
 
 JSON на `/studies` соответствует backend-структуре `StudyRequest`: `id`, `created_at`, `updated_at`, `study_id`, `patient`, `age`, `department`, `name_operation`, `descr_operation`, `time_begining`, `time_duration`, `surgeon`, `dicom_link`. JSON на `/xa_studies` и `/ct_studies` содержит `agent_id`, `request_id`, `query`, `studies`, `sent_at`.
 
+Маппинг полей `/studies` из DOCX-протокола:
+
+- `study_id` — номер после `Операция:`.
+- `patient`, `age`, `time_begining`, `name_operation` — существующие парсеры из `scripts.report_plan`.
+- `department` — по номеру после `Карта стационарного больного`: `44` = `кардиология`, `42` = `рсц`, `26` = `сосудистая хирургия`, `179` = `неврология`.
+- `descr_operation` — текст после `Описание операции:` до `Исход:`, `Рек-но:`, `Расходные материалы` или `Опер.:`.
+- `time_duration` — минуты из `Длительность операции`.
+- `surgeon` — значение после `Опер.:_______`.
+- `id` — стабильный UUID от пути и подписи файла, `created_at`/`updated_at` — время парсинга, `dicom_link` всегда пустой: backend заполнит его позже при обновлении записи.
+
 ## Команды PACS и DICOM
 
 ### `dicom_cli.py`
