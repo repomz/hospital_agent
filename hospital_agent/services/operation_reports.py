@@ -1,10 +1,12 @@
+import logging
 import os
 import re
-import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from zipfile import ZipFile
 import xml.etree.ElementTree as ET
+
+LOGGER = logging.getLogger("hospital_agent.services.operation_reports")
 
 # --- НАСТРОЙКИ ПО УМОЛЧАНИЮ ---
 DEFAULT_TARGET_DIR_1 = r"C:\Users\Angio_hir1\Desktop\Операции 2026"
@@ -13,50 +15,6 @@ DEFAULT_PLAN_DIR = r"C:\Users\Angio_hir1\Desktop\План Отчеты"
 DEFAULT_REPORT_DIR = r"C:\Users\Angio_hir1\Desktop\План Отчеты\отчеты"
 DEFAULT_PERIOD = 1
 DEFAULT_TIME = "08:00"
-
-# ANSI цвета для красивого вывода
-class Colors:
-    """ANSI-коды цветов для консольного вывода отчета."""
-    HEADER = '\033[95m'
-    BLUE = '\033[94m'
-    CYAN = '\033[96m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
-    END = '\033[0m'
-    BOLD = '\033[1m'
-    DIM = '\033[2m'
-
-def print_stage(stage_name, emoji="📋"):
-    """Выводит этап выполнения с красивым форматированием"""
-    print(f"\n{Colors.CYAN}{emoji} {stage_name}{Colors.END}")
-    print(f"{Colors.DIM}{'─' * 50}{Colors.END}")
-
-def print_success(message):
-    """Печатает успешное информационное сообщение."""
-    print(f"{Colors.GREEN}✓ {message}{Colors.END}")
-
-def print_info(message):
-    """Печатает нейтральное информационное сообщение."""
-    print(f"{Colors.BLUE}ℹ {message}{Colors.END}")
-
-def print_warning(message):
-    """Печатает предупреждение пользователю."""
-    print(f"{Colors.YELLOW}⚠ {message}{Colors.END}")
-
-def print_error(message):
-    """Печатает сообщение об ошибке."""
-    print(f"{Colors.RED}✗ {message}{Colors.END}")
-
-def print_progress(current, total, prefix="Прогресс"):
-    """Показывает прогресс в процентах"""
-    percent = (current / total) * 100
-    bar_length = 80
-    filled_length = int(bar_length * current // total)
-    bar = '█' * filled_length + '░' * (bar_length - filled_length)
-    print(f"\r{Colors.GREEN}{prefix}: |{bar}| {percent:.1f}% {Colors.END}", end='', flush=True)
-    if current == total:
-        print()
 
 def scan_and_filter_files(base_paths, start_period, end_period):
     """Сканирует несколько папок с операциями"""
@@ -69,7 +27,7 @@ def scan_and_filter_files(base_paths, start_period, end_period):
     for base_path in base_paths:
         base_path = Path(base_path)
         if not base_path.exists():
-            print_warning(f"Папка {base_path} не найдена")
+            LOGGER.warning("Operations directory does not exist: %s", base_path)
             continue
         
         for root, dirs, files in os.walk(base_path):
@@ -77,14 +35,12 @@ def scan_and_filter_files(base_paths, start_period, end_period):
                 if file.lower().endswith('.docx'):
                     all_files.append(Path(root) / file)
     
-    # print_info(f"Найдено файлов: {len(all_files)}")
-    
     if not all_files:
         return []
     
     for i, file_path in enumerate(all_files, 1):
         if i % 50 == 0 or i == len(all_files):
-            print_progress(i, len(all_files), "Анализ")
+            LOGGER.info("Analyzed operation files: %s/%s", i, len(all_files))
         
         result = analyze_file(file_path, start_period, end_period)
         if result:
@@ -171,11 +127,12 @@ def parse_patient_from_content(content):
     pattern = r"Ф\.И\.О\. больного:\s*([^,]+),\s*возраст\s*(\d+)"
     match = re.search(pattern, content)
     if match:
-        fio = match.group(1).strip()
+        fio = re.sub(r"\s+", " ", match.group(1).strip())
         age = match.group(2).strip()
         parts = fio.split()
-        if len(parts) >= 3:
-            short_fio = f"{parts[0]} {parts[1][0]}.{parts[2][0]}."
+        if len(parts) >= 2:
+            initials = "".join(f"{part[0]}." for part in parts[1:] if part)
+            short_fio = f"{parts[0]} {initials}"
         elif len(parts) == 2:
             short_fio = f"{parts[0]} {parts[1][0]}."
         else:
@@ -185,6 +142,10 @@ def parse_patient_from_content(content):
 
 def shorten_operation_name(operation):
     """Сокращает название операции"""
+    operation = re.sub(r"\s+", " ", operation.replace("\xa0", " ")).strip()
+    operation = re.sub(r"\s+([.,])", r"\1", operation)
+    operation = re.sub(r"([.,])(?=[^\s\d])", r"\1 ", operation)
+
     operation = re.sub(r'Коронарография', 'КАГ.', operation, flags=re.IGNORECASE)
     operation = re.sub(r'Коронарошунтография', 'КАГ+шунтогр', operation, flags=re.IGNORECASE)
     operation = re.sub(r'Церебральная ангиография', 'ЦАГ.', operation, flags=re.IGNORECASE)
@@ -211,6 +172,8 @@ def shorten_operation_name(operation):
     operation = re.sub(r'огибающую', 'ОА', operation, flags=re.IGNORECASE)
     operation = re.sub(r'огибающей', 'ОА', operation, flags=re.IGNORECASE)
     operation = re.sub(r'ветвь тупого края', 'ВТК', operation, flags=re.IGNORECASE)
+    operation = re.sub(r'прав\w*\s+коронарн\w*', 'ПКА', operation, flags=re.IGNORECASE)
+    operation = re.sub(r'лева\w*\s+коронарн\w*', 'ЛКА', operation, flags=re.IGNORECASE)
     operation = re.sub(r'правая коронарная', 'ПКА', operation, flags=re.IGNORECASE)
     operation = re.sub(r'правой', 'ПКА', operation, flags=re.IGNORECASE)
     operation = re.sub(r'диагональная', 'ДА', operation, flags=re.IGNORECASE)
@@ -223,14 +186,15 @@ def shorten_operation_name(operation):
     operation = re.sub(r'задняя мозговая артерия', 'ЗМА', operation, flags=re.IGNORECASE)
     
     # Заменяем сегменты
-    operation = re.sub(r'проксимальный сегмент', 'пр/3', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'средний сегмент', 'ср/3', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'дистальный сегмент', 'д/3', operation, flags=re.IGNORECASE)
+    operation = re.sub(r'проксимальн\w*\s+сегмент\w*', 'пр/3', operation, flags=re.IGNORECASE)
+    operation = re.sub(r'средн\w*\s+сегмент\w*', 'ср/3', operation, flags=re.IGNORECASE)
+    operation = re.sub(r'дистальн\w*\s+сегмент\w*', 'д/3', operation, flags=re.IGNORECASE)
     
     # Убираем лишнее
     operation = re.sub(r'\,', '', operation)
     operation = re.sub(r'\+', '', operation)
     operation = re.sub(r'тотальная|селективная|транслюминальная|баллонной|баллонная|баллонного|внутриаортального|первичная|механической|механическая|артерии|артерий|артерию|ствол|окклюзия|установка', '', operation, flags=re.IGNORECASE)
+    operation = re.sub(r'\.{2,}', '.', operation)
     operation = re.sub(r'\s+\.', '.', operation)
     operation = re.sub(r'\s+', ' ', operation)
     
@@ -438,8 +402,8 @@ def get_plan_data(plan_dir, target_date):
                 
                 return planned_patients, planned_details
                 
-    except Exception as e:
-        print(f"Ошибка при парсинге файла плана: {e}")
+    except Exception as exc:
+        LOGGER.warning("Cannot parse operation plan file: %s", exc)
         return set(), []
 
 def get_plan_for_date_range(plan_dir, target_date):
@@ -618,47 +582,28 @@ def generate_report(operations, start_period, end_period,
     
     return output_filepath
 
-def main():
-    """Точка входа CLI: разбирает аргументы и запускает сценарий скрипта."""
-    os.system('cls' if os.name == 'nt' else 'clear')
-    
-    # Расчет периода
-    start_period = get_start_datetime(DEFAULT_PERIOD, DEFAULT_TIME)
-    end_period = datetime.now()
-    
-    # Загрузка планов (тихо)
-    planned_patients_for_period, _ = get_plan_data(DEFAULT_PLAN_DIR, start_period)
-    _, planned_details_today = get_plan_data(DEFAULT_PLAN_DIR, end_period)
-    
-    # Сбор файлов
-    all_files = []
-    for base_path in [DEFAULT_TARGET_DIR_1, DEFAULT_TARGET_DIR_2]:
-        base_path = Path(base_path)
-        if base_path.exists():
-            for root, dirs, files in os.walk(base_path):
-                for file in files:
-                    if file.lower().endswith('.docx'):
-                        all_files.append(Path(root) / file)
-    
-    # Сканирование с прогресс-баром
-    operations = []
-    for i, file_path in enumerate(all_files, 1):
-        # Прогресс-бар в процентах
-        percent = int((i / len(all_files)) * 100)
-        print(f"\rОбработка: [{'#' * (percent // 2)}{'.' * (50 - percent // 2)}] {percent}%", end='', flush=True)
-        
-        result = analyze_file(file_path, start_period, end_period)
-        if result:
-            operations.append(result)
-    
-    # Формирование отчета
-    print(f"\rФормирование отчета...", end='', flush=True)
-    output_file = generate_report(operations, start_period, end_period, 
-                                  planned_patients_for_period, planned_details_today, DEFAULT_REPORT_DIR)
-    
-    # Итог
-    print(f"\r✅ Отчет сохранен: {output_file}                      ")
-    print(f"📊 Всего операций: {len(operations)}\n")
 
-if __name__ == "__main__":
-    main()
+def generate_operations_report(
+    period: int = DEFAULT_PERIOD,
+    time_value: str = DEFAULT_TIME,
+    dir1: str = DEFAULT_TARGET_DIR_1,
+    dir2: str = DEFAULT_TARGET_DIR_2,
+    plan_dir: str = DEFAULT_PLAN_DIR,
+    report_dir: str = DEFAULT_REPORT_DIR,
+) -> Path:
+    """Сканирует DOCX и формирует отчет по операциям."""
+    start_period = get_start_datetime(period, time_value)
+    end_period = datetime.now()
+    planned_patients, _ = get_plan_data(plan_dir, start_period)
+    _, planned_details_today = get_plan_data(plan_dir, end_period)
+    operations = scan_and_filter_files([dir1, dir2], start_period, end_period)
+    return Path(
+        generate_report(
+            operations,
+            start_period,
+            end_period,
+            planned_patients,
+            planned_details_today,
+            report_dir,
+        )
+    )

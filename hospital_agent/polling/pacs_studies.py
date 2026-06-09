@@ -4,9 +4,9 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from .config import AgentConfig, PollingConfig
-from .http_client import ViewerClient
-from .state import AgentState, save_state
+from ..config import AgentConfig, PollingConfig
+from ..http_client import ViewerClient
+from ..state import AgentState, save_state
 
 
 LOGGER = logging.getLogger("hospital_agent.pacs")
@@ -63,9 +63,10 @@ def should_poll_pacs_studies(
 
 def find_pacs_studies(config: AgentConfig, modality: str, period: str) -> list[dict[str, Any]]:
     """Выполняет PACS C-FIND через существующий PACSClient."""
-    from scripts.dicom_cli import PACSClient, load_config
+    from ..services.pacs import PACSClient
+    from ..support.dicom import load_pacs_config
 
-    pacs_config = load_config(str(config.pacs_config_path))
+    pacs_config = load_pacs_config(str(config.pacs_config_path))
     client = PACSClient(pacs_config)
     return client.find_studies(modality=modality, period=period)
 

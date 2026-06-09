@@ -35,6 +35,7 @@ class AgentConfig:
     agent_id: str
     request_timeout_seconds: int
     alive_polling_interval_min: float
+    user_requests_polling: PollingConfig
     ct_polling: PollingConfig
     xa_polling: PollingConfig
     study_polling: PollingConfig
@@ -128,6 +129,7 @@ def load_agent_config(path: str | Path = DEFAULT_CONFIG_PATH) -> AgentConfig:
         agent_id=str(raw_config.get("agent_id", "hospital-agent")),
         request_timeout_seconds=int(raw_config.get("request_timeout_seconds", 30)),
         alive_polling_interval_min=float(raw_config.get("alive_polling_interval_min", 5)),
+        user_requests_polling=_polling_config(raw_config, "user_requests_polling", "/user_requests"),
         ct_polling=_polling_config(raw_config, "ct_polling", "/ct_studies"),
         xa_polling=_polling_config(raw_config, "xa_polling", "/xa_studies"),
         study_polling=_polling_config(raw_config, "study_polling", "/studies"),

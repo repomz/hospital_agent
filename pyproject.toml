@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hospital-agent-tools"
+name = "hospital-agent"
 version = "0.1.0"
-description = "Hospital workstation scripts for PACS, DICOM transfer, Yandex Cloud upload, and operation reports."
+description = "Unified hospital workstation agent for PACS, DICOM transfer, Yandex Cloud upload, MAPDR import, and operation reports."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -16,18 +16,10 @@ dependencies = [
 ]
 
 [project.scripts]
-copy-month-operations = "scripts.copy1:main"
-dicom-cli = "scripts.dicom_cli:main"
-dicom-monitor = "scripts.dicom_monitor:main"
 hospital-agent = "hospital_agent.app:main"
-pacs-download = "scripts.pypacs_download:main"
-pacs-to-yandex = "scripts.pacs_to_yandex:main"
-report-operations = "scripts.report:main"
-report-plan = "scripts.report_plan:main"
-upload-to-yandex = "scripts.upload_to_yandex:main"
 
 [tool.setuptools.packages.find]
-include = ["hospital_agent*", "hospital_agent_tools*", "scripts*"]
+include = ["hospital_agent*"]
 
 [tool.ruff]
 line-length = 100

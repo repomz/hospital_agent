@@ -5,11 +5,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable
 
-from .alive import send_alive
 from .config import AgentConfig, PollingConfig
 from .http_client import ViewerClient
-from .pacs import poll_agent_request_for_modality, run_pacs_polling
-from .protocols import poll_operation_protocols
+from .polling.alive import send_alive
+from .polling.pacs_studies import poll_agent_request_for_modality, run_pacs_polling
+from .polling.protocols import poll_operation_protocols
+from .polling.user_requests import poll_user_requests
 from .state import AgentState, load_state
 
 
@@ -94,6 +95,18 @@ def _build_runtimes(
 ) -> list[PollingRuntime]:
     """Создает runtime-объекты для активных блоков ct/xa/study polling."""
     runtimes: list[PollingRuntime] = []
+
+    if config.user_requests_polling.state:
+        runtimes.append(
+            PollingRuntime(
+                name="user_requests_polling",
+                config=config.user_requests_polling,
+                run=lambda: LOGGER.info(
+                    "User request polling finished: processed=%s",
+                    poll_user_requests(config, config.user_requests_polling, viewer, state),
+                ),
+            )
+        )
 
     if config.study_polling.state:
         runtimes.append(

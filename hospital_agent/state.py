@@ -11,6 +11,7 @@ class AgentState:
     processed_protocols: dict[str, str] = field(default_factory=dict)
     last_agent_request_id: str | None = None
     last_agent_request_ids: dict[str, str] = field(default_factory=dict)
+    last_user_request_id: str | None = None
 
 
 def load_state(path: Path) -> AgentState:
@@ -31,6 +32,7 @@ def load_state(path: Path) -> AgentState:
         last_agent_request_ids={
             str(key): str(value) for key, value in raw.get("last_agent_request_ids", {}).items()
         },
+        last_user_request_id=raw.get("last_user_request_id"),
     )
 
 
@@ -41,6 +43,7 @@ def save_state(path: Path, state: AgentState) -> None:
         "processed_protocols": state.processed_protocols,
         "last_agent_request_id": state.last_agent_request_id,
         "last_agent_request_ids": state.last_agent_request_ids,
+        "last_user_request_id": state.last_user_request_id,
     }
     with path.open("w", encoding="utf-8") as file:
         json.dump(payload, file, ensure_ascii=False, indent=2)

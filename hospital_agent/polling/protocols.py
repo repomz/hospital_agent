@@ -6,16 +6,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from scripts.report_plan import (
+from ..services.operation_reports import (
     parse_operation_datetime,
     parse_operation_from_content,
     parse_patient_from_content,
     read_docx_text,
 )
 
-from .config import AgentConfig, PollingConfig
-from .http_client import ViewerClient
-from .state import AgentState, save_state
+from ..config import AgentConfig, PollingConfig
+from ..http_client import ViewerClient
+from ..state import AgentState, save_state
 
 
 LOGGER = logging.getLogger("hospital_agent.protocols")
@@ -66,11 +66,11 @@ def parse_study_id(content: str) -> str | None:
 def parse_medical_record_number(content: str) -> str | None:
     """Извлекает номер карты стационарного больного."""
     match = re.search(
-        r"Карта\s+стационарного\s+больного\s*([0-9]+)\s*[-–]",
+        r"Карта\s+стационарного\s+больного\s*([0-9]+\s*[-–]\s*[0-9]+)",
         content,
         flags=re.IGNORECASE,
     )
-    return match.group(1) if match else None
+    return re.sub(r"\s+", "", match.group(1)).replace("–", "-") if match else None
 
 
 def department_from_record_number(record_number: str | None) -> str:
