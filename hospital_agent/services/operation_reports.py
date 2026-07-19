@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import re
@@ -15,6 +16,79 @@ DEFAULT_PLAN_DIR = r"C:\Users\Angio_hir1\Desktop\План Отчеты"
 DEFAULT_REPORT_DIR = r"C:\Users\Angio_hir1\Desktop\План Отчеты\отчеты"
 DEFAULT_PERIOD = 1
 DEFAULT_TIME = "08:00"
+
+
+def normalize_spaces(value):
+    """Нормализует пробельные символы в строке."""
+    return re.sub(r"\s+", " ", str(value or "").replace("\xa0", " ")).strip()
+
+
+def format_patient_short(fio):
+    """Сокращает ФИО до формата 'Фамилия И.О.'."""
+    parts = normalize_spaces(fio).split()
+    if len(parts) >= 2:
+        initials = "".join(f"{part[0]}." for part in parts[1:] if part)
+        return f"{parts[0]} {initials}"
+    return normalize_spaces(fio)
+
+
+def parse_date_value(value):
+    """Преобразует дату формата DD.MM.YYYY/DD.MM.YY в datetime.date."""
+    value = str(value or "").strip().replace("/", ".").replace("-", ".")
+    for date_format in ("%d.%m.%Y", "%d.%m.%y"):
+        try:
+            return datetime.strptime(value, date_format).date()
+        except ValueError:
+            continue
+    return None
+
+
+def format_date_value(value):
+    """Возвращает дату в формате DD.MM.YYYY или пустую строку."""
+    parsed = parse_date_value(value)
+    return parsed.strftime("%d.%m.%Y") if parsed else ""
+
+
+def extract_birth_date(value):
+    """Извлекает дату рождения из произвольного текста."""
+    text = normalize_spaces(value)
+    patterns = [
+        r"(?:дата\s+рождения|д\.?\s*р\.?|рожд\.?|г\.?\s*р\.?)\s*:?\s*"
+        r"(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})",
+        r"\b(\d{1,2}[./-]\d{1,2}[./-](?:19|20)\d{2})\b",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            birth_date = format_date_value(match.group(1))
+            if birth_date:
+                return birth_date
+    return ""
+
+
+def strip_birth_date(value):
+    """Удаляет дату рождения и служебные маркеры из строки пациента."""
+    text = normalize_spaces(value)
+    text = re.sub(
+        r"(?:дата\s+рождения|д\.?\s*р\.?|рожд\.?|г\.?\s*р\.?)\s*:?\s*"
+        r"\d{1,2}[./-]\d{1,2}[./-]\d{2,4}",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(r"\b\d{1,2}[./-]\d{1,2}[./-](?:19|20)\d{2}\b", "", text)
+    return normalize_spaces(text)
+
+
+def parse_birth_date_from_content(content):
+    """Извлекает дату рождения пациента из протокола операции."""
+    match = re.search(
+        r"Ф\.И\.О\.\s*больного\s*:\s*([^\n\r]*)",
+        content,
+        flags=re.IGNORECASE,
+    )
+    return extract_birth_date(match.group(1)) if match else ""
+
 
 def scan_and_filter_files(base_paths, start_period, end_period):
     """Сканирует несколько папок с операциями"""
@@ -64,15 +138,15 @@ def get_start_datetime(period_days, time_str):
     """Вычисляет дату и время начала отчетного периода."""
     now = datetime.now()
     time_str = parse_time_string(time_str)
-    
+
     try:
-        hour = int(time_str.split(':')[0])
-        minute = int(time_str.split(':')[1])
-    except:
-        hour, minute = 8, 0
-    
+        start_time = datetime.strptime(time_str, "%H:%M").time()
+    except ValueError:
+        LOGGER.warning("Invalid report start time %r; using 08:00", time_str)
+        start_time = datetime.strptime(DEFAULT_TIME, "%H:%M").time()
+
     start_date = now.date() - timedelta(days=period_days)
-    return datetime.combine(start_date, datetime.strptime(f"{hour}:{minute}", "%H:%M").time())
+    return datetime.combine(start_date, start_time)
 
 def read_docx_text(file_path):
     """Извлекает текст из .docx файла"""
@@ -107,19 +181,24 @@ def read_docx_text(file_path):
                 full_text = re.sub(r'(Ф\.И\.О\. больного:[^\n]+?)(Диагноз)', r'\1\n\2', full_text)
                 
                 return full_text
-    except Exception:
+    except (OSError, KeyError, ET.ParseError) as exc:
+        LOGGER.warning("Cannot read DOCX file %s: %s", file_path, exc)
         return None
 
 def parse_operation_datetime(content):
     """Извлекает дату и время операции"""
-    pattern = r"Дата и время операции:\s*(\d{2}\.\d{2}\.\d{4})\s+(\d{2}:\d{2})"
+    pattern = (
+        r"Дата\s+и\s+время\s+операции\s*:\s*"
+        r"(\d{1,2})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{4})\s+"
+        r"(\d{1,2})\s*:\s*(\d{2})"
+    )
     match = re.search(pattern, content)
     if match:
-        date_str, time_str = match.groups()
         try:
-            return datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
-        except:
-            pass
+            day, month, year, hour, minute = (int(value) for value in match.groups())
+            return datetime(year, month, day, hour, minute)
+        except ValueError:
+            return None
     return None
 
 def parse_patient_from_content(content):
@@ -127,17 +206,9 @@ def parse_patient_from_content(content):
     pattern = r"Ф\.И\.О\. больного:\s*([^,]+),\s*возраст\s*(\d+)"
     match = re.search(pattern, content)
     if match:
-        fio = re.sub(r"\s+", " ", match.group(1).strip())
+        fio = normalize_spaces(match.group(1).strip())
         age = match.group(2).strip()
-        parts = fio.split()
-        if len(parts) >= 2:
-            initials = "".join(f"{part[0]}." for part in parts[1:] if part)
-            short_fio = f"{parts[0]} {initials}"
-        elif len(parts) == 2:
-            short_fio = f"{parts[0]} {parts[1][0]}."
-        else:
-            short_fio = fio
-        return short_fio, age
+        return format_patient_short(fio), age
     return None, None
 
 def shorten_operation_name(operation):
@@ -383,19 +454,28 @@ def get_plan_data(plan_dir, target_date):
                                     if full_text:
                                         operation_lines = [op.strip() for op in ' '.join(full_text).split() if op.strip()]
                             
-                            # Создаем тройки пациент-отделение-операция
+                            # Создаем записи пациент-отделение-операция.
                             max_len = max(len(patient_lines), len(department_lines), len(operation_lines))
                             
                             for idx in range(max_len):
-                                patient = patient_lines[idx] if idx < len(patient_lines) else ""
+                                patient_raw = patient_lines[idx] if idx < len(patient_lines) else ""
                                 department = department_lines[idx] if idx < len(department_lines) else ""
                                 operation = operation_lines[idx] if idx < len(operation_lines) else ""
                                 
-                                if patient:
+                                if patient_raw:
+                                    birth_date = extract_birth_date(patient_raw)
+                                    patient = format_patient_short(strip_birth_date(patient_raw))
                                     # Извлекаем фамилию пациента для сопоставления
                                     patient_surname = patient.split()[0] if patient.split() else patient
                                     planned_patients.add(patient_surname)
-                                    planned_details.append((patient, department, operation))
+                                    planned_details.append(
+                                        {
+                                            "patient": patient,
+                                            "birth_date": birth_date,
+                                            "department": normalize_spaces(department),
+                                            "operation": normalize_spaces(operation),
+                                        }
+                                    )
                             
                             break  # Нашли нужную дату, выходим из цикла
                     i += 1
@@ -463,6 +543,225 @@ def split_operations_by_plan(operations, planned_patients):
             emergency.append(op)
     
     return planned, emergency
+
+
+def parse_medical_record_number(content):
+    """Извлекает номер карты стационарного больного из протокола."""
+    match = re.search(
+        r"Карта\s+стационарного\s+больного\s*([0-9]+\s*[-–]\s*[0-9]+)",
+        content,
+        flags=re.IGNORECASE,
+    )
+    return re.sub(r"\s+", "", match.group(1)).replace("–", "-") if match else None
+
+
+def department_from_record_number(record_number):
+    """Определяет отделение по началу номера карты."""
+    if not record_number:
+        return ""
+    if record_number.startswith("44"):
+        return "кардиология"
+    if record_number.startswith("42"):
+        return "рсц"
+    if record_number.startswith("26"):
+        return "сосудистая хирургия"
+    if record_number.startswith("179"):
+        return "неврология"
+    return ""
+
+
+def parse_operation_description(content):
+    """Извлекает описание операции из протокола."""
+    match = re.search(
+        r"Описание\s+операции\s*:\s*(.*?)(?=\s+Исход\s*:|\s+Рек-но\s*:|"
+        r"\s+Расходные\s+материалы|\s+Опер\.\s*:|$)",
+        content,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    return normalize_spaces(match.group(1)) if match else ""
+
+
+def parse_recommendation(content):
+    """Извлекает рекомендации после операции."""
+    match = re.search(
+        r"(?:Рек-но|Рекомендовано)\s*:\s*"
+        r"(.*?)(?=\s+Расходные\s+материалы|\s+Опер\.\s*:|$)",
+        content,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    return normalize_spaces(match.group(1)) if match else ""
+
+
+def parse_operation_duration_min(content):
+    """Извлекает длительность операции в минутах."""
+    match = re.search(
+        r"Длительность\s+операции\s*:\s*(?:(\d+)\s*час\w*)?\s*(?:(\d+)\s*мин\w*)?",
+        content,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return ""
+    hours = int(match.group(1) or 0)
+    minutes = int(match.group(2) or 0)
+    return str(hours * 60 + minutes)
+
+
+def parse_surgeon(content):
+    """Извлекает хирурга после подписи 'Опер.:_______'."""
+    match = re.search(r"Опер\.\s*:\s*_*\s*([^\n\r]+)", content, flags=re.IGNORECASE)
+    return normalize_spaces(match.group(1)) if match else ""
+
+
+def truncate_text(value, limit=120):
+    """Ограничивает длинное текстовое поле для JSON-отчета."""
+    text = normalize_spaces(value)
+    if len(text) <= limit:
+        return text
+    return text[: limit - 3].rstrip() + "..."
+
+
+def iter_operation_files(base_paths):
+    """Ищет DOCX-протоколы операций в одной или нескольких папках."""
+    if isinstance(base_paths, str):
+        base_paths = [base_paths]
+
+    files = []
+    for base_path in base_paths:
+        base_path = Path(base_path)
+        if not base_path.exists():
+            LOGGER.warning("Operations directory does not exist: %s", base_path)
+            continue
+        for root, _dirs, filenames in os.walk(base_path):
+            for filename in filenames:
+                if filename.lower().endswith(".docx"):
+                    files.append(Path(root) / filename)
+    return sorted(files)
+
+
+def analyze_operation_file(file_path):
+    """Извлекает полную структуру операции из DOCX-протокола."""
+    content = read_docx_text(file_path)
+    if not content:
+        return None
+
+    op_datetime = parse_operation_datetime(content)
+    patient, age = parse_patient_from_content(content)
+    operation = parse_operation_from_content(content)
+    if not op_datetime or not patient or not operation:
+        return None
+
+    return {
+        "patient": patient,
+        "surname": patient.split()[0].lower() if patient.split() else "",
+        "birth_date": parse_birth_date_from_content(content),
+        "age": age or "",
+        "department": department_from_record_number(parse_medical_record_number(content)),
+        "operation": operation,
+        "datetime": op_datetime,
+        "time_beginnig": op_datetime.strftime("%H:%M"),
+        "time_duration": parse_operation_duration_min(content),
+        "description": parse_operation_description(content),
+        "recomendation": parse_recommendation(content),
+        "surgeon": parse_surgeon(content),
+        "source_file": str(file_path),
+    }
+
+
+def operation_summary(operation):
+    """Формирует JSON-элемент проведенной операции."""
+    return {
+        "patient": operation["patient"],
+        "age": operation["age"],
+        "department": operation["department"],
+        "operation": operation["operation"],
+        "time_beginnig": operation["time_beginnig"],
+        "time_duration": operation["time_duration"],
+        "surgeon": operation["surgeon"],
+    }
+
+
+def previous_operation_summary(operation):
+    """Формирует краткое описание прошлой операции пациента."""
+    return {
+        "date": operation["datetime"].strftime("%d.%m.%Y"),
+        "operation": operation["operation"],
+        "description": truncate_text(operation["description"]),
+        "recomendation": truncate_text(operation["recomendation"]),
+        "surgeon": operation["surgeon"],
+    }
+
+
+def same_patient(plan_item, operation):
+    """Сопоставляет пациента плана с протоколом по фамилии и дате рождения."""
+    plan_patient = str(plan_item.get("patient", ""))
+    plan_surname = plan_patient.split()[0].lower() if plan_patient.split() else ""
+    if not plan_surname or plan_surname != operation.get("surname"):
+        return False
+
+    plan_birth_date = plan_item.get("birth_date") or ""
+    operation_birth_date = operation.get("birth_date") or ""
+    if plan_birth_date and operation_birth_date:
+        return plan_birth_date == operation_birth_date
+    return not plan_birth_date
+
+
+def build_operations_report_payload(
+    period,
+    start_period,
+    end_period,
+    period_operations,
+    all_operations,
+    planned_patients_for_period,
+    planned_details_today,
+):
+    """Собирает JSON-отчет по операциям и сегодняшнему плану."""
+    planned_ops, emergency_ops = split_operations_by_plan(
+        list(period_operations),
+        planned_patients_for_period,
+    )
+    planned_ops = sort_operations_by_category(planned_ops)
+    emergency_ops = sort_operations_by_category(emergency_ops)
+
+    today_planned_operations = []
+    today_start = datetime.combine(end_period.date(), datetime.min.time())
+    for plan_item in planned_details_today:
+        if not isinstance(plan_item, dict):
+            patient, department, operation = plan_item
+            plan_item = {
+                "patient": patient,
+                "birth_date": "",
+                "department": department,
+                "operation": operation,
+            }
+
+        previous_operations = [
+            previous_operation_summary(operation)
+            for operation in all_operations
+            if operation["datetime"] < today_start and same_patient(plan_item, operation)
+        ]
+        previous_operations.sort(key=lambda item: parse_date_value(item["date"]), reverse=True)
+        today_planned_operations.append(
+            {
+                "patient": plan_item.get("patient", ""),
+                "age": "",
+                "department": plan_item.get("department", ""),
+                "operation": plan_item.get("operation", ""),
+                "previous_operations": previous_operations,
+            }
+        )
+
+    return {
+        "date": end_period.strftime("%d.%m.%Y"),
+        "period_days": int(period),
+        "period_start": start_period.strftime("%d.%m.%Y %H:%M"),
+        "period_end": end_period.strftime("%d.%m.%Y %H:%M"),
+        "planned_count": len(planned_ops),
+        "emergency_total": len(emergency_ops),
+        "today_planned_count": len(today_planned_operations),
+        "planned_operations": [operation_summary(operation) for operation in planned_ops],
+        "emergency_operations": [operation_summary(operation) for operation in emergency_ops],
+        "today_planned_operations": today_planned_operations,
+    }
 
 def write_stats(f, operations, title):
     """Записывает статистику и список операций"""
@@ -567,7 +866,13 @@ def generate_report(operations, start_period, end_period,
         if planned_details_today:
             f.write(f"{'№':<4} {'Пациент':<25} {'Отд':<8} {'Операция'}\n")
             f.write("-" * 85 + "\n")
-            for i, (patient, department, operation) in enumerate(planned_details_today, 1):
+            for i, plan_item in enumerate(planned_details_today, 1):
+                if isinstance(plan_item, dict):
+                    patient = plan_item.get("patient", "")
+                    department = plan_item.get("department", "")
+                    operation = plan_item.get("operation", "")
+                else:
+                    patient, department, operation = plan_item
                 operation_short = shorten_operation_name(operation)
                 # Ограничиваем длину строк для читаемости
                 patient_short = patient[:25] if len(patient) > 25 else patient
@@ -590,16 +895,28 @@ def generate_operations_report(
     dir2: str = DEFAULT_TARGET_DIR_2,
     plan_dir: str = DEFAULT_PLAN_DIR,
     report_dir: str = DEFAULT_REPORT_DIR,
-) -> Path:
-    """Сканирует DOCX и формирует отчет по операциям."""
+) -> dict:
+    """Сканирует DOCX и формирует JSON-отчет по операциям."""
     start_period = get_start_datetime(period, time_value)
     end_period = datetime.now()
     planned_patients, _ = get_plan_data(plan_dir, start_period)
     _, planned_details_today = get_plan_data(plan_dir, end_period)
-    operations = scan_and_filter_files([dir1, dir2], start_period, end_period)
-    return Path(
+
+    all_operations = []
+    for file_path in iter_operation_files([dir1, dir2]):
+        operation = analyze_operation_file(file_path)
+        if operation:
+            all_operations.append(operation)
+
+    period_operations = [
+        operation
+        for operation in all_operations
+        if start_period <= operation["datetime"] <= end_period
+    ]
+
+    text_report_path = Path(
         generate_report(
-            operations,
+            period_operations,
             start_period,
             end_period,
             planned_patients,
@@ -607,3 +924,25 @@ def generate_operations_report(
             report_dir,
         )
     )
+
+    payload = build_operations_report_payload(
+        period,
+        start_period,
+        end_period,
+        period_operations,
+        all_operations,
+        planned_patients,
+        planned_details_today,
+    )
+
+    report_path = Path(report_dir)
+    report_path.mkdir(parents=True, exist_ok=True)
+    json_report_path = report_path / f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    with json_report_path.open("w", encoding="utf-8") as file:
+        json.dump(payload, file, ensure_ascii=False, indent=2)
+
+    return {
+        "report": payload,
+        "json_report_file": str(json_report_path),
+        "text_report_file": str(text_report_path),
+    }

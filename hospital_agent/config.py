@@ -119,6 +119,15 @@ def load_agent_config(path: str | Path = DEFAULT_CONFIG_PATH) -> AgentConfig:
     raw_config = _apply_environment(raw_config)
 
     viewer_url = str(raw_config["viewer_url"]).rstrip("/")
+    if not viewer_url.startswith(("http://", "https://")):
+        raise ValueError("viewer_url must start with http:// or https://")
+    agent_id = str(raw_config.get("agent_id", "")).strip()
+    try:
+        parsed_agent_id = int(agent_id)
+    except ValueError as exc:
+        raise ValueError("agent_id must be a positive integer") from exc
+    if parsed_agent_id <= 0:
+        raise ValueError("agent_id must be a positive integer")
     return AgentConfig(
         viewer_url=viewer_url,
         environment=str(raw_config.get("environment", "prod")),
@@ -126,7 +135,7 @@ def load_agent_config(path: str | Path = DEFAULT_CONFIG_PATH) -> AgentConfig:
         log_dir=Path(raw_config.get("log_dir", "logs/agent")),
         state_file=Path(raw_config.get("state_file", "logs/agent/state.json")),
         pacs_config_path=Path(raw_config.get("pacs_config_path", "config.json")),
-        agent_id=str(raw_config.get("agent_id", "hospital-agent")),
+        agent_id=agent_id,
         request_timeout_seconds=int(raw_config.get("request_timeout_seconds", 30)),
         alive_polling_interval_min=float(raw_config.get("alive_polling_interval_min", 5)),
         user_requests_polling=_polling_config(raw_config, "user_requests_polling", "/user_requests"),

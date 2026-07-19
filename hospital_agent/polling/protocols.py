@@ -20,6 +20,7 @@ from ..state import AgentState, save_state
 
 LOGGER = logging.getLogger("hospital_agent.protocols")
 STUDY_NAMESPACE = uuid.UUID("90153e75-8f87-4f1f-a874-6a0ef089cf68")
+ALLOWED_SURGEONS = ("идрисов", "шпилевой", "старков", "киргизов")
 
 
 def protocol_signature(path: Path) -> str:
@@ -135,6 +136,45 @@ def parse_surgeon(content: str) -> str:
     return _normalize_text(match.group(1)) if match else ""
 
 
+def normalize_surgeon(value: str) -> str:
+    """Возвращает поддерживаемую backend фамилию хирурга."""
+    normalized = _normalize_text(value).lower().replace("ё", "е")
+    for surgeon in ALLOWED_SURGEONS:
+        if surgeon.replace("ё", "е") in normalized:
+            return surgeon
+    return ""
+
+
+def classify_study_type(operation: str) -> str:
+    """Определяет backend study_type по названию операции."""
+    value = _normalize_text(operation).lower().replace("ё", "е")
+    is_carotid = any(token in value for token in ("вса", "сонн", "каротид"))
+    is_peripheral = any(
+        token in value
+        for token in ("перифер", "нижн", "пба", "нпа", "подвздош", "бедрен")
+    )
+
+    if "тромбаспир" in value:
+        return "тромбаспирация"
+    if "стент" in value:
+        if is_carotid:
+            return "стент_вса"
+        if is_peripheral:
+            return "стент_периферии"
+        return "стент_кор"
+    if any(token in value for token in ("бап", "ангиопласт", "баллон")):
+        if is_carotid:
+            return "бап_вса"
+        if is_peripheral:
+            return "бап_периферии"
+        return "бап_кор"
+    if any(token in value for token in ("цаг", "церебраль")):
+        return "цаг"
+    if any(token in value for token in ("каг", "коронарограф")):
+        return "каг"
+    return ""
+
+
 def parse_protocol(path: Path, agent_id: str) -> dict[str, Any] | None:
     """Парсит DOCX-протокол операции в JSON StudyRequest для /studies."""
     content = read_docx_text(path)
@@ -150,23 +190,29 @@ def parse_protocol(path: Path, agent_id: str) -> dict[str, Any] | None:
         LOGGER.warning("Cannot parse required protocol fields: %s", path)
         return None
 
-    now = datetime.now(timezone.utc)
-    signature = protocol_signature(path)
-    study_uuid = _protocol_uuid(path, signature)
+    study_type = classify_study_type(operation)
+    surgeon = normalize_surgeon(parse_surgeon(content))
+    if not study_type or not surgeon:
+        LOGGER.warning(
+            "Cannot classify study_type or surgeon for protocol %s: operation=%r surgeon=%r",
+            path,
+            operation,
+            parse_surgeon(content),
+        )
+        return None
+
     record_number = parse_medical_record_number(content)
     return {
-        "id": str(study_uuid),
-        "created_at": _rfc3339(now),
-        "updated_at": _rfc3339(now),
         "study_id": study_id,
         "patient": patient,
         "age": int(age) if str(age).isdigit() else 0,
-        "department": department_from_record_number(record_number),
+        "department": department_from_record_number(record_number) or "не указано",
         "name_operation": operation,
-        "descr_operation": parse_operation_description(content),
-        "time_begining": _rfc3339(operation_datetime),
+        "study_type": study_type,
+        "descr_operation": parse_operation_description(content) or operation,
+        "time_beginning": _rfc3339(operation_datetime),
         "time_duration": parse_operation_duration_min(content),
-        "surgeon": parse_surgeon(content),
+        "surgeon": surgeon,
         "dicom_link": "",
     }
 

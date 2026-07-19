@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from ..config import AgentConfig
+from ..http_client import ViewerClient
 from .operation_reports import (
     DEFAULT_PERIOD,
     DEFAULT_PLAN_DIR,
@@ -25,6 +26,7 @@ def execute_user_command(
     command: str,
     payload: dict[str, Any],
     request_id: str,
+    viewer: ViewerClient | None = None,
 ) -> dict[str, Any] | None:
     """Выполняет поддержанную команду backend-запроса."""
     if command == SEND_STUDY_TO_YANDEX:
@@ -32,7 +34,7 @@ def execute_user_command(
     if command == SEND_DICOM_TO_MAPDR:
         return send_path_to_mapdr(payload)
     if command == GENERATE_OPERATIONS_REPORT:
-        return generate_report_from_payload(payload)
+        return generate_report_from_payload(payload, viewer)
     return None
 
 
@@ -100,9 +102,12 @@ def send_path_to_mapdr(payload: dict[str, Any]) -> dict[str, Any]:
     return upload_path_to_mapdr(hostname, port, dicom_path, username, password)
 
 
-def generate_report_from_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    """Генерирует отчет по операциям из параметров backend-запроса."""
-    output_file = generate_operations_report(
+def generate_report_from_payload(
+    payload: dict[str, Any],
+    viewer: ViewerClient | None = None,
+) -> dict[str, Any]:
+    """Генерирует отчет; JSON вернется backend в результате user_request."""
+    result = generate_operations_report(
         period=int(payload.get("period", DEFAULT_PERIOD)),
         time_value=str(payload.get("time", DEFAULT_TIME)),
         dir1=str(payload.get("dir1", payload.get("operations_dir1", DEFAULT_TARGET_DIR_1))),
@@ -110,4 +115,8 @@ def generate_report_from_payload(payload: dict[str, Any]) -> dict[str, Any]:
         plan_dir=str(payload.get("plan_dir", payload.get("plandir", DEFAULT_PLAN_DIR))),
         report_dir=str(payload.get("report_dir", payload.get("reportdir", DEFAULT_REPORT_DIR))),
     )
-    return {"output_file": str(output_file)}
+    return {
+        "report": result["report"],
+        "json_report_file": result["json_report_file"],
+        "text_report_file": result["text_report_file"],
+    }

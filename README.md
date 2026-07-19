@@ -1,6 +1,8 @@
 # Hospital Agent
 
-Единый Python-проект для постоянного агента больничного компьютера: heartbeat в backend, PACS polling, отправка протоколов операций, выполнение команд из `backend_url/user_requests`, скачивание DICOM, отправка в Yandex Cloud, импорт в MAPDR/Orthanc и генерация отчетов.
+Единый Python-проект для постоянного агента больничного компьютера: heartbeat в backend, PACS polling, отправка протоколов операций, выполнение команд из `viewer_url/user_requests`, скачивание DICOM, отправка в Yandex Cloud, импорт в MAPDR/Orthanc и генерация отчетов.
+
+Требуется Python 3.10 или новее. Для разработки и проверки проекта рекомендуется Python 3.11.
 
 ## Структура
 
@@ -81,7 +83,7 @@ pip install -e .
 
 - по настройкам `study_polling` сканирует `operations_dirs`;
 - новые `.docx` протоколы операций парсит функциями из `hospital_agent.services.operation_reports`;
-- отправляет JSON одного протокола POST-запросом на `viewer_url/studies`;
+- отправляет JSON одного протокола POST-запросом на endpoint из `study_polling.endpoint`;
 - по настройкам `xa_polling` выполняет PACS FIND `modality="XA"`;
 - по настройкам `ct_polling` выполняет PACS FIND `modality="CT"`;
 - для `work_option="on_request"` опрашивает `viewer_url/agent_request`;
@@ -94,7 +96,7 @@ pip install -e .
 {
   "viewer_url": "http://127.0.0.1:8080",
   "environment": "test",
-  "agent_id": "hospital-agent",
+  "agent_id": 2,
   "description": "операционная №2",
   "log_dir": "logs/agent",
   "state_file": "logs/agent/state.json",
@@ -158,15 +160,17 @@ pythonw hospital_agent.py
 
 ## Команды из backend `/user_requests`
 
-Агент принимает объект или список объектов. Id запроса берется из `request_id`, `id` или `uuid`; если id нет, считается hash payload.
+Агент принимает объект или список объектов. ID запроса берется из `request_id`, `id` или `uuid`; если ID нет, вычисляется стабильный hash payload. Обработанные ID сохраняются в `state_file`, поэтому один и тот же список запросов не выполняется повторно после следующего polling или перезапуска агента. Журнал ограничен последними 1000 ID.
 
 Поддержанные команды в поле `command`, `action` или `type`:
 
 - `send_study_to_yandex`: требуется `study_uid`. Агент скачивает исследование из PACS во временную локальную папку, отправляет скачанные файлы в Yandex Cloud и затем удаляет временную папку.
 - `send_dicom_to_mapdr`: требуется `dicom_path`, опционально `mapdr_host`, `mapdr_port`, `mapdr_username`, `mapdr_password`.
-- `generate_operations_report`: опционально `period`, `time`, `dir1`, `dir2`, `plan_dir`, `report_dir`.
+- `generate_operations_report`: опционально `period`, `time`, `dir1`, `dir2`, `plan_dir`, `report_dir`. Команда создает текстовый и JSON-файлы отчета; JSON также возвращается в результате `user_request`.
 
-Если backend передает `response_endpoint` или `callback_endpoint`, агент отправляет туда JSON с результатом выполнения.
+Агент запрашивает только свою очередь: `GET /user_requests?agent_id=<agent_id>`. Backend атомарно выдает одно задание и передает `response_endpoint`. После выполнения агент отправляет туда `agent_id`, `ok`, `retryable`, `result` и `error`.
+
+Успешные, неподдерживаемые и некорректно сформированные команды отмечаются обработанными только после подтверждения backend. Неподтвержденный terminal result сохраняется в `state_file` и при повторной выдаче отправляется снова без повторного выполнения команды. Временные ошибки отправляются с `retryable=true`; backend повторяет задание не более `max_attempts`.
 
 Возможные `work_option`: `on_time`, `on_request`, `interval`, `exit_session`, `logging_session`. Если `state` равен `false`, соответствующий polling полностью выключен.
 
@@ -174,17 +178,20 @@ pythonw hospital_agent.py
 
 Каждые `alive_polling_interval_min` минут агент отправляет POST на `viewer_url/agent_status`. JSON содержит `agent_id` и `status`.
 
-JSON на `/studies` соответствует backend-структуре `StudyRequest`: `id`, `created_at`, `updated_at`, `study_id`, `patient`, `age`, `department`, `name_operation`, `descr_operation`, `time_begining`, `time_duration`, `surgeon`, `dicom_link`. JSON на `/xa_studies` и `/ct_studies` содержит `agent_id`, `request_id`, `query`, `studies`, `sent_at`.
+JSON протокола операции соответствует backend-структуре `StudyRequest`: `study_id`, `patient`, `age`, `department`, `name_operation`, `study_type`, `descr_operation`, `time_beginning`, `time_duration`, `surgeon`, `dicom_link`. Тип исследования определяется из названия операции, а хирург нормализуется до фамилии из backend-справочника. JSON на `/xa_studies` и `/ct_studies` содержит `agent_id`, `request_id`, `query`, `studies`, `sent_at`.
+
+JSON отчета на `/reports` содержит границы периода, количество плановых и экстренных операций, списки выполненных операций и текущий план. Для пациентов текущего плана добавляется история предыдущих операций, если пациента удалось сопоставить по фамилии и дате рождения.
 
 Маппинг полей `/studies` из DOCX-протокола:
 
 - `study_id` — номер после `Операция:`.
-- `patient`, `age`, `time_begining`, `name_operation` — существующие парсеры из `hospital_agent.services.operation_reports`.
+- `patient`, `age`, `time_beginning`, `name_operation` — существующие парсеры из `hospital_agent.services.operation_reports`.
+- `study_type` — классификация названия операции в один из типов backend.
 - `department` — по номеру после `Карта стационарного больного`: `44` = `кардиология`, `42` = `рсц`, `26` = `сосудистая хирургия`, `179` = `неврология`.
 - `descr_operation` — текст после `Описание операции:` до `Исход:`, `Рек-но:`, `Расходные материалы` или `Опер.:`.
 - `time_duration` — минуты из `Длительность операции`.
 - `surgeon` — значение после `Опер.:_______`.
-- `id` — стабильный UUID от пути и подписи файла, `created_at`/`updated_at` — время парсинга, `dicom_link` всегда пустой: backend заполнит его позже при обновлении записи.
+- `dicom_link` всегда пустой: backend заполнит его позже при обновлении записи.
 
 PACS/Yandex, MAPDR и отчеты запускаются только агентом по командам из `/user_requests`; отдельной CLI-логики в проекте нет.
 
@@ -200,13 +207,16 @@ PACS/Yandex, MAPDR и отчеты запускаются только аген�
 
 ## Проверка проекта
 
-Быстрая проверка синтаксиса:
+Проверка синтаксиса:
 
 ```powershell
-python3 -m compileall hospital_agent hospital_agent.py
+python -m compileall hospital_agent hospital_agent.py
 ```
 
-Для проверки реального PACS/Yandex/MAPDR нужен доступ к больничной сети, корректные AE-настройки в `config.json` и установленные зависимости из `requirements.txt`.
+Запуск автоматических тестов:
 
+```powershell
+python -m unittest discover -v
+```
 
-codex resume 019ead34-19d9-73c0-9631-0baf36e8c786
+Для интеграционной проверки PACS/Yandex/MAPDR нужен доступ к больничной сети, корректные AE-настройки в `config.json`, backend viewer и установленные зависимости из `requirements.txt`.
