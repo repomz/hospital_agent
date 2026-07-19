@@ -1,4 +1,5 @@
 import logging
+import os
 from pathlib import Path
 
 from .config import DEFAULT_CONFIG_PATH, load_agent_config
@@ -21,6 +22,7 @@ def setup_logging(log_dir: Path) -> None:
 
 def main() -> None:
     """Точка входа приложения hospital_agent без аргументов запуска."""
-    config = load_agent_config(DEFAULT_CONFIG_PATH)
+    config_path = Path(os.getenv("HOSPITAL_AGENT_CONFIG", str(DEFAULT_CONFIG_PATH)))
+    config = load_agent_config(config_path)
     setup_logging(config.log_dir)
     raise SystemExit(run_agent(config))

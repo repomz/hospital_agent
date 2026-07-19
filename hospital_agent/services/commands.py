@@ -1,3 +1,4 @@
+import os
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -29,12 +30,70 @@ def execute_user_command(
     viewer: ViewerClient | None = None,
 ) -> dict[str, Any] | None:
     """Выполняет поддержанную команду backend-запроса."""
+    if _mock_commands_enabled():
+        if config.environment != "test":
+            raise RuntimeError("HOSPITAL_AGENT_MOCK_COMMANDS is allowed only in test environment")
+        return execute_mock_command(command, payload, request_id)
     if command == SEND_STUDY_TO_YANDEX:
         return send_study_to_yandex(config, payload, request_id)
     if command == SEND_DICOM_TO_MAPDR:
         return send_path_to_mapdr(payload)
     if command == GENERATE_OPERATIONS_REPORT:
         return generate_report_from_payload(payload, viewer)
+    return None
+
+
+def _mock_commands_enabled() -> bool:
+    """Проверяет явный флаг безопасного E2E-режима."""
+    return os.getenv("HOSPITAL_AGENT_MOCK_COMMANDS", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def execute_mock_command(
+    command: str,
+    payload: dict[str, Any],
+    request_id: str,
+) -> dict[str, Any] | None:
+    """Имитирует больничные интеграции без PACS, Yandex, MAPDR и файловой системы."""
+    outcome = str(payload.get("mock_outcome", "success")).strip().lower()
+    if outcome == "validation_error":
+        raise ValueError("mock validation error")
+    if outcome == "retryable_error":
+        raise RuntimeError("mock temporary hospital service error")
+
+    result: dict[str, Any] = {
+        "mocked": True,
+        "command": command,
+        "request_id": request_id,
+    }
+    if command == SEND_STUDY_TO_YANDEX:
+        study_uid = payload.get("study_uid")
+        if not study_uid:
+            raise ValueError("send_study_to_yandex requires study_uid")
+        result.update(
+            {
+                "study_uid": str(study_uid),
+                "uploaded_files": int(payload.get("mock_uploaded_files", 3)),
+                "uploaded_bytes": int(payload.get("mock_uploaded_bytes", 3072)),
+            }
+        )
+        return result
+    if command == SEND_DICOM_TO_MAPDR:
+        if not payload.get("dicom_path"):
+            raise ValueError("send_dicom_to_mapdr requires dicom_path")
+        result["success"] = int(payload.get("mock_uploaded_files", 1))
+        return result
+    if command == GENERATE_OPERATIONS_REPORT:
+        result["report"] = {
+            "mocked": True,
+            "planned_count": int(payload.get("mock_planned_count", 2)),
+            "emergency_count": int(payload.get("mock_emergency_count", 1)),
+        }
+        return result
     return None
 
 

@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlencode
 
@@ -52,14 +51,11 @@ def _result_delivery(
     if not endpoint:
         return None
     payload = {
-        "request_id": request_id,
         "agent_id": int(config.agent_id),
-        "command": command,
         "ok": ok,
         "retryable": retryable,
         "result": result or {},
         "error": error,
-        "sent_at": datetime.now(timezone.utc).isoformat(),
     }
     return {"endpoint": str(endpoint), "payload": payload}
 

@@ -1,0 +1,32 @@
+{
+  "viewer_url": "http://viewer-backend:8080",
+  "environment": "test",
+  "agent_id": 2,
+  "description": "containerized E2E hospital agent",
+  "log_dir": "/data/logs",
+  "state_file": "/data/state.json",
+  "request_timeout_seconds": 10,
+  "alive_polling_interval_min": 1,
+  "pacs_config_path": "/config/config.json",
+  "user_requests_polling": {
+    "state": true,
+    "work_option": "interval",
+    "interval_min": 0.05,
+    "on_time": "07:30",
+    "endpoint": "/user_requests"
+  },
+  "ct_polling": {
+    "state": false
+  },
+  "xa_polling": {
+    "state": false
+  },
+  "study_polling": {
+    "state": false
+  },
+  "environments": {
+    "prod": {},
+    "dev": {},
+    "test": {}
+  }
+}

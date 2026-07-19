@@ -1,4 +1,5 @@
 import json
+import os
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -116,12 +117,18 @@ def load_agent_config(path: str | Path = DEFAULT_CONFIG_PATH) -> AgentConfig:
     config_path = Path(path)
     with config_path.open("r", encoding="utf-8") as file:
         raw_config: dict[str, Any] = json.load(file)
+    if os.getenv("HOSPITAL_AGENT_ENVIRONMENT"):
+        raw_config["environment"] = os.environ["HOSPITAL_AGENT_ENVIRONMENT"]
     raw_config = _apply_environment(raw_config)
 
-    viewer_url = str(raw_config["viewer_url"]).rstrip("/")
+    viewer_url = str(
+        os.getenv("HOSPITAL_AGENT_VIEWER_URL", raw_config["viewer_url"])
+    ).rstrip("/")
     if not viewer_url.startswith(("http://", "https://")):
         raise ValueError("viewer_url must start with http:// or https://")
-    agent_id = str(raw_config.get("agent_id", "")).strip()
+    agent_id = str(
+        os.getenv("HOSPITAL_AGENT_AGENT_ID", raw_config.get("agent_id", ""))
+    ).strip()
     try:
         parsed_agent_id = int(agent_id)
     except ValueError as exc:
