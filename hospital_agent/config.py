@@ -1,7 +1,6 @@
 import json
-import os
 from dataclasses import dataclass, replace
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any
 
 
@@ -49,6 +48,15 @@ def _as_path_list(values: list[str] | str | None) -> list[Path]:
     if isinstance(values, str):
         values = [values]
     return [Path(value) for value in values]
+
+
+def _resolve_local_path(base_dir: Path, value: str | Path) -> Path:
+    """Разрешает относительный путь от каталога agent_config.json."""
+    raw_value = str(value)
+    path = Path(raw_value).expanduser()
+    if path.is_absolute() or PureWindowsPath(raw_value).is_absolute():
+        return path
+    return base_dir / path
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -114,39 +122,57 @@ def _polling_config(
 
 def load_agent_config(path: str | Path = DEFAULT_CONFIG_PATH) -> AgentConfig:
     """Загружает agent_config.json и приводит его к настройкам сервиса."""
-    config_path = Path(path)
+    config_path = Path(path).expanduser()
+    if not config_path.is_absolute():
+        config_path = Path.cwd() / config_path
+    config_path = config_path.resolve()
+    base_dir = config_path.parent
     with config_path.open("r", encoding="utf-8") as file:
         raw_config: dict[str, Any] = json.load(file)
-    if os.getenv("HOSPITAL_AGENT_ENVIRONMENT"):
-        raw_config["environment"] = os.environ["HOSPITAL_AGENT_ENVIRONMENT"]
     raw_config = _apply_environment(raw_config)
 
-    viewer_url = str(
-        os.getenv("HOSPITAL_AGENT_VIEWER_URL", raw_config["viewer_url"])
-    ).rstrip("/")
+    viewer_url = str(raw_config["viewer_url"]).rstrip("/")
     if not viewer_url.startswith(("http://", "https://")):
         raise ValueError("viewer_url must start with http:// or https://")
-    agent_id = str(
-        os.getenv("HOSPITAL_AGENT_AGENT_ID", raw_config.get("agent_id", ""))
-    ).strip()
+    agent_id = str(raw_config.get("agent_id", "")).strip()
     try:
         parsed_agent_id = int(agent_id)
     except ValueError as exc:
         raise ValueError("agent_id must be a positive integer") from exc
     if parsed_agent_id <= 0:
         raise ValueError("agent_id must be a positive integer")
+
+    study_polling = _polling_config(raw_config, "study_polling", "/studies")
+    study_polling = replace(
+        study_polling,
+        operations_dirs=[
+            _resolve_local_path(base_dir, path)
+            for path in study_polling.operations_dirs or []
+        ],
+    )
+
     return AgentConfig(
         viewer_url=viewer_url,
         environment=str(raw_config.get("environment", "prod")),
         description=str(raw_config.get("description", "")),
-        log_dir=Path(raw_config.get("log_dir", "logs/agent")),
-        state_file=Path(raw_config.get("state_file", "logs/agent/state.json")),
-        pacs_config_path=Path(raw_config.get("pacs_config_path", "config.json")),
+        log_dir=_resolve_local_path(base_dir, raw_config.get("log_dir", "logs/agent")),
+        state_file=_resolve_local_path(
+            base_dir,
+            raw_config.get("state_file", "logs/agent/state.json"),
+        ),
+        pacs_config_path=_resolve_local_path(
+            base_dir,
+            raw_config.get("pacs_config_path", "config.json"),
+        ),
         agent_id=agent_id,
         request_timeout_seconds=int(raw_config.get("request_timeout_seconds", 30)),
         alive_polling_interval_min=float(raw_config.get("alive_polling_interval_min", 5)),
-        user_requests_polling=_polling_config(raw_config, "user_requests_polling", "/user_requests"),
+        user_requests_polling=_polling_config(
+            raw_config,
+            "user_requests_polling",
+            "/user_requests",
+        ),
         ct_polling=_polling_config(raw_config, "ct_polling", "/ct_studies"),
         xa_polling=_polling_config(raw_config, "xa_polling", "/xa_studies"),
-        study_polling=_polling_config(raw_config, "study_polling", "/studies"),
+        study_polling=study_polling,
     )

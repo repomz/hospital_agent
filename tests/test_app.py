@@ -1,0 +1,104 @@
+import json
+import logging
+import unittest
+from datetime import date
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
+
+from hospital_agent.app import (
+    DailyFileHandler,
+    is_pythonw,
+    resolve_config_path,
+    setup_logging,
+)
+from hospital_agent.config import load_agent_config
+
+
+class AppStartupTests(unittest.TestCase):
+    def tearDown(self):
+        logging.shutdown()
+        for handler in logging.getLogger().handlers[:]:
+            logging.getLogger().removeHandler(handler)
+
+    def test_pythonw_detection_supports_windows_paths(self):
+        self.assertTrue(is_pythonw(r"C:\Python311\pythonw.exe"))
+        self.assertTrue(is_pythonw(r"C:\Python311\pythonw3.11.exe"))
+        self.assertFalse(is_pythonw(r"C:\Python311\python.exe"))
+
+    def test_terminal_logging_does_not_create_log_directory(self):
+        with TemporaryDirectory() as tmp_dir:
+            log_dir = Path(tmp_dir) / "logs"
+
+            setup_logging(log_dir, background=False)
+
+            self.assertFalse(log_dir.exists())
+            self.assertEqual(len(logging.getLogger().handlers), 1)
+            self.assertIsInstance(logging.getLogger().handlers[0], logging.StreamHandler)
+            self.assertNotIsInstance(logging.getLogger().handlers[0], DailyFileHandler)
+
+    def test_background_logging_switches_file_after_midnight(self):
+        with TemporaryDirectory() as tmp_dir:
+            log_dir = Path(tmp_dir)
+            current_day = [date(2026, 7, 24)]
+            handler = DailyFileHandler(log_dir, date_provider=lambda: current_day[0])
+            handler.setFormatter(logging.Formatter("%(message)s"))
+            logger = logging.getLogger("test.daily-log")
+            logger.handlers = [handler]
+            logger.propagate = False
+            logger.setLevel(logging.INFO)
+
+            logger.info("first day")
+            current_day[0] = date(2026, 7, 25)
+            logger.info("second day")
+            handler.close()
+
+            self.assertEqual(
+                (log_dir / "2026-07-24.log").read_text(encoding="utf-8").strip(),
+                "first day",
+            )
+            self.assertEqual(
+                (log_dir / "2026-07-25.log").read_text(encoding="utf-8").strip(),
+                "second day",
+            )
+
+    def test_config_is_found_in_current_directory(self):
+        with TemporaryDirectory() as tmp_dir:
+            config_path = Path(tmp_dir) / "agent_config.json"
+            config_path.write_text("{}", encoding="utf-8")
+
+            with patch("hospital_agent.app.Path.cwd", return_value=Path(tmp_dir)):
+                resolved = resolve_config_path()
+
+            self.assertEqual(resolved, config_path.resolve())
+
+    def test_relative_config_paths_use_config_directory(self):
+        raw_config = {
+            "viewer_url": "http://127.0.0.1:8080",
+            "agent_id": 2,
+            "environment": "prod",
+            "log_dir": "logs/agent",
+            "state_file": "logs/agent/state.json",
+            "pacs_config_path": "config.json",
+            "study_polling": {
+                "operations_dir": "operations",
+            },
+        }
+        with TemporaryDirectory() as tmp_dir:
+            base_dir = Path(tmp_dir).resolve()
+            config_path = base_dir / "agent_config.json"
+            config_path.write_text(
+                json.dumps(raw_config),
+                encoding="utf-8",
+            )
+
+            config = load_agent_config(config_path)
+
+            self.assertEqual(config.log_dir, base_dir / "logs" / "agent")
+            self.assertEqual(config.state_file, base_dir / "logs" / "agent" / "state.json")
+            self.assertEqual(config.pacs_config_path, base_dir / "config.json")
+            self.assertEqual(config.study_polling.operations_dirs, [base_dir / "operations"])
+
+
+if __name__ == "__main__":
+    unittest.main()

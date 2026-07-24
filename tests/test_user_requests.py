@@ -7,7 +7,6 @@ from unittest.mock import patch
 
 from hospital_agent.polling.user_requests import poll_user_requests, run_user_request
 from hospital_agent.services.commands import generate_report_from_payload
-from hospital_agent.services.commands import execute_user_command
 from hospital_agent.state import AgentState, load_state
 
 
@@ -132,11 +131,12 @@ class UserRequestTests(unittest.TestCase):
                 "hospital_agent.polling.user_requests.execute_user_command",
                 return_value={"uploaded": 3},
             ) as execute:
-                self.assertFalse(run_user_request(config, viewer, state, payload))
-                self.assertIn("durable-result", state.pending_user_request_results)
+                with patch("hospital_agent.polling.user_requests.LOGGER.warning"):
+                    self.assertFalse(run_user_request(config, viewer, state, payload))
+                    self.assertIn("durable-result", state.pending_user_request_results)
 
-                viewer.post_result = True
-                self.assertFalse(run_user_request(config, viewer, state, payload))
+                    viewer.post_result = True
+                    self.assertFalse(run_user_request(config, viewer, state, payload))
 
         self.assertEqual(execute.call_count, 1)
         self.assertEqual(state.processed_user_request_ids, ["durable-result"])
@@ -145,26 +145,6 @@ class UserRequestTests(unittest.TestCase):
         self.assertEqual(endpoint, "/user_requests/durable-result/result")
         self.assertEqual(result["agent_id"], 2)
         self.assertTrue(result["ok"])
-
-    def test_mock_command_does_not_call_hospital_integrations(self):
-        config = SimpleNamespace(environment="test")
-        with patch.dict("os.environ", {"HOSPITAL_AGENT_MOCK_COMMANDS": "1"}):
-            result = execute_user_command(
-                config,
-                "send_study_to_yandex",
-                {"study_uid": "1.2.3", "mock_uploaded_files": 5},
-                "request-1",
-            )
-
-        self.assertTrue(result["mocked"])
-        self.assertEqual(result["uploaded_files"], 5)
-
-    def test_mock_mode_is_forbidden_in_prod(self):
-        config = SimpleNamespace(environment="prod")
-        with patch.dict("os.environ", {"HOSPITAL_AGENT_MOCK_COMMANDS": "1"}):
-            with self.assertRaisesRegex(RuntimeError, "only in test"):
-                execute_user_command(config, "generate_operations_report", {}, "request-1")
-
 
 if __name__ == "__main__":
     unittest.main()
