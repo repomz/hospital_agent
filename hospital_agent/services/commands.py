@@ -269,5 +269,4 @@ def generate_report_from_payload(
         raise RuntimeError("backend rejected operations report")
     return {
         "report": result["report"],
-        "text_report_file": result["text_report_file"],
     }

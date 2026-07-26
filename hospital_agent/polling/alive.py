@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime, timezone
 
 from ..config import AgentConfig
 from ..http_client import ViewerClient

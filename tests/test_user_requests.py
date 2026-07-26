@@ -117,7 +117,7 @@ class UserRequestTests(unittest.TestCase):
             result = generate_report_from_payload(config, {}, viewer)
 
         self.assertEqual(result["report"], {"planned_count": 1})
-        self.assertEqual(result["text_report_file"], "report.txt")
+        self.assertNotIn("text_report_file", result)
         self.assertEqual(viewer.posts[0][0], "/reports")
 
     def test_success_result_is_retried_without_reexecuting_command(self):

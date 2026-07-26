@@ -4,11 +4,6 @@
         "port": 11112,
         "ae_title": "PACSOKB"
     },
-    "mapdrpacs": {
-        "ip": "178.72.165.60",
-        "port": 4242,
-        "ae_title": "MAPDR"
-    },
     "local": {
         "ae_title": "RADIANT",
         "output_dir": "./dicom",

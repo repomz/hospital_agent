@@ -12,7 +12,7 @@
       "age": "69",
       "department": "кардио №2",
       "operation": "БАП со стентм из а стЛКА в ОА.",
-      "time_beginnig": "13:00",
+      "time_beginning": "13:00",
       "time_duration": "40",
       "surgeon": "Старков А.С."
     }
@@ -23,7 +23,7 @@
       "age": "77",
       "department": "кардио №1",
       "operation": "КАГ.",
-      "time_beginnig": "18:10",
+      "time_beginning": "18:10",
       "time_duration": "10",
       "surgeon": "Идрисов М.З."
     },
@@ -32,7 +32,7 @@
       "age": "70",
       "department": "кардио №1",
       "operation": "КАГ.. стент рестеноза в стенте проксимального сегмента ПНА Xience Xpedition 3.0x48мм",
-      "time_beginnig": "17:30",
+      "time_beginning": "17:30",
       "time_duration": "20",
       "surgeon": "Идрисов М.З."
     },
@@ -41,7 +41,7 @@
       "age": "72",
       "department": "кардио №1",
       "operation": "КАГ.. стент ПКА коронарной Tetrilimus 3.0x32мм 12атм и Tetrilimus 3.5x24мм и ПНА Xience Xpedition...",
-      "time_beginnig": "16:20",
+      "time_beginning": "16:20",
       "time_duration": "50",
       "surgeon": "Идрисов М.З."
     },
@@ -50,7 +50,7 @@
       "age": "65",
       "department": "пит рсц",
       "operation": "ЦАГ.",
-      "time_beginnig": "19:35",
+      "time_beginning": "19:35",
       "time_duration": "15",
       "surgeon": "Идрисов М.З."
     }
@@ -80,7 +80,7 @@
           "date": "25.12.2025",
           "operation": "КАГ.",
           "description": "Правый тип кровоснабжения. Выраженный атеросклероз коронарных. Отмечается стеноз 30% а стЛКА. Виз...",
-          "recomendation": "",
+          "recommendation": "",
           "surgeon": "Старков А.С."
         }
       ]
@@ -95,14 +95,14 @@
           "date": "23.04.2026",
           "operation": "стент общей подвздошной прав",
           "description": "Стеноз 80% ОПА прав после стентирования остаточный стеноз = 0%.",
-          "recomendation": "",
+          "recommendation": "",
           "surgeon": "Киргизов А.А."
         },
         {
           "date": "15.04.2026",
           "operation": "КАГ.",
           "description": "смешанный тип кровоснабжения. Атеросклероз коронарных. ПКА артерия протяженная хроническая в сред...",
-          "recomendation": "",
+          "recommendation": "",
           "surgeon": "Киргизов А.А."
         }
       ]

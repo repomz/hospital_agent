@@ -800,10 +800,10 @@ def analyze_operation_file(file_path):
         "department": department_from_record_number(parse_medical_record_number(content)),
         "operation": operation,
         "datetime": op_datetime,
-        "time_beginnig": op_datetime.strftime("%H:%M"),
+        "time_beginning": op_datetime.strftime("%H:%M"),
         "time_duration": parse_operation_duration_min(content),
         "description": parse_operation_description(content),
-        "recomendation": parse_recommendation(content),
+        "recommendation": parse_recommendation(content),
         "surgeon": parse_surgeon(content),
         "source_file": str(file_path),
     }
@@ -816,7 +816,7 @@ def operation_summary(operation):
         "age": operation["age"],
         "department": operation["department"],
         "operation": operation["operation"],
-        "time_beginnig": operation["time_beginnig"],
+        "time_beginning": operation["time_beginning"],
         "time_duration": operation["time_duration"],
         "surgeon": operation["surgeon"],
     }
@@ -828,7 +828,7 @@ def previous_operation_summary(operation):
         "date": operation["datetime"].strftime("%d.%m.%Y"),
         "operation": operation["operation"],
         "description": truncate_text(operation["description"]),
-        "recomendation": truncate_text(operation["recomendation"]),
+        "recommendation": truncate_text(operation["recommendation"]),
         "surgeon": operation["surgeon"],
     }
 

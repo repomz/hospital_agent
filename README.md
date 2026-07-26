@@ -79,7 +79,6 @@ pip install -e .
 - `services/commands.py` — единый диспетчер команд backend;
 - `services/pacs.py` — PACS FIND и скачивание исследования;
 - `services/yandex.py` — отправка DICOM в Yandex Object Storage;
-- `services/mapdr.py` — legacy-клиент MAPDR; рабочий импорт выполняется backend;
 - `services/operation_reports.py` — парсинг DOCX, план операций и генерация отчета;
 - `support/` — вспомогательные функции для DICOM-конфига, дат и backend payload.
 
@@ -204,7 +203,6 @@ Endpoint и граница дежурства 08:00 являются часть�
 - конфигурация: `load_agent_config`, `load_pacs_config`, `build_date_range`;
 - PACS: `PACSClient.find_studies`, `PACSClient.download_study`;
 - backend-команды: `poll_user_requests`, `run_user_request`, `execute_user_command`;
-- MAPDR: `upload_path_to_mapdr`, `upload_file`;
 - отчеты: `generate_operations_report`, `read_docx_text`, `parse_operation_datetime`, `parse_patient_from_content`, `shorten_operation_name`, `generate_report`;
 
 ## Проверка проекта

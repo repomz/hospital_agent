@@ -5,9 +5,11 @@ from tempfile import TemporaryDirectory
 
 from hospital_agent.services.operation_reports import (
     classify_operation,
+    operation_summary,
     parse_birth_date_from_content,
     parse_operation_datetime,
     parse_recommendation,
+    previous_operation_summary,
     read_docx_text,
     shorten_operation_description,
     shorten_operation_name,
@@ -86,6 +88,28 @@ class OperationReportParsingTests(unittest.TestCase):
 
     def test_report_classification_recognizes_short_thrombaspiration(self):
         self.assertEqual(classify_operation("ЦАГ. ТА СМА"), 2)
+
+    def test_report_uses_correct_time_and_recommendation_keys(self):
+        operation = {
+            "patient": "Иванов И.И.",
+            "age": "50",
+            "department": "кардиология",
+            "operation": "КАГ",
+            "datetime": datetime(2026, 7, 26, 10, 0),
+            "time_beginning": "10:00",
+            "time_duration": 20,
+            "description": "Описание",
+            "recommendation": "Наблюдение",
+            "surgeon": "идрисов",
+        }
+
+        current = operation_summary(operation)
+        previous = previous_operation_summary(operation)
+
+        self.assertEqual(current["time_beginning"], "10:00")
+        self.assertNotIn("time_beginnig", current)
+        self.assertEqual(previous["recommendation"], "Наблюдение")
+        self.assertNotIn("recomendation", previous)
 
 
 if __name__ == "__main__":
