@@ -16,7 +16,12 @@ class ViewerClient:
         self.base_url = base_url.rstrip("/")
         self.timeout_seconds = timeout_seconds
 
-    def post_json(self, endpoint: str, payload: dict[str, Any]) -> bool:
+    def post_json(
+        self,
+        endpoint: str,
+        payload: dict[str, Any],
+        timeout_seconds: int | None = None,
+    ) -> bool:
         """Отправляет JSON payload POST-запросом на endpoint viewer."""
         url = self.base_url + endpoint
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -27,7 +32,10 @@ class ViewerClient:
             headers={"Content-Type": "application/json; charset=utf-8"},
         )
         try:
-            with urlopen(request, timeout=self.timeout_seconds) as response:
+            with urlopen(
+                request,
+                timeout=timeout_seconds or self.timeout_seconds,
+            ) as response:
                 ok = 200 <= response.status < 300
                 if not ok:
                     LOGGER.warning("POST %s returned HTTP %s", url, response.status)

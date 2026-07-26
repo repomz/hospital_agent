@@ -253,9 +253,10 @@ def poll_operation_protocols(
         if payload is None:
             continue
 
-        if viewer.post_json(polling.endpoint, payload):
-            state.processed_protocols[state_key] = signature
-            save_state(config.state_file, state)
+        if viewer.post_json("/studies", payload):
+            with state.lock:
+                state.processed_protocols[state_key] = signature
+                save_state(config.state_file, state)
             sent_count += 1
-            LOGGER.info("Sent operation protocol: %s", path)
+            LOGGER.info("Sent: %s", path)
     return sent_count

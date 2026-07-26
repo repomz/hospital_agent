@@ -4,8 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from pydicom.dataset import Dataset
-from pydicom.uid import ExplicitVRLittleEndian, ImplicitVRLittleEndian, JPEG2000Lossless, JPEGLossless
-from pynetdicom import AE, evt
+from pynetdicom import AE, ALL_TRANSFER_SYNTAXES, evt
 from pynetdicom.presentation import build_role
 from pynetdicom.sop_class import (
     CTImageStorage,
@@ -47,12 +46,7 @@ class PACSClient:
         self.retry_attempts = local_config.get("retry_attempts", 3)
         self.retry_delay = local_config.get("retry_delay", 5)
         self.retrieval_cancelled = False
-        self._transfer_syntaxes = [
-            ExplicitVRLittleEndian,
-            ImplicitVRLittleEndian,
-            JPEG2000Lossless,
-            JPEGLossless,
-        ]
+        self._transfer_syntaxes = ALL_TRANSFER_SYNTAXES
 
     def cancel(self) -> None:
         """Помечает текущую операцию как отмененную."""
@@ -106,6 +100,7 @@ class PACSClient:
         modality: str | None = None,
         period: str | None = None,
         date_value: str | None = None,
+        date_range: str | None = None,
         patient_name: str | None = None,
     ) -> list[dict[str, Any]]:
         """Ищет исследования в PACS по модальности, периоду и пациенту."""
@@ -121,7 +116,10 @@ class PACSClient:
             ds.QueryRetrieveLevel = "STUDY"
             ds.StudyInstanceUID = ""
             ds.PatientName = ""
+            ds.PatientBirthDate = ""
+            ds.PatientAge = ""
             ds.StudyDate = ""
+            ds.StudyTime = ""
             ds.StudyDescription = ""
             ds.ModalitiesInStudy = ""
             ds.NumberOfStudyRelatedSeries = ""
@@ -129,8 +127,11 @@ class PACSClient:
             if modality:
                 ds.ModalitiesInStudy = modality.upper()
             if patient_name:
+                ds.SpecificCharacterSet = "ISO_IR 192"
                 ds.PatientName = patient_name + "*"
-            if period or date_value:
+            if date_range:
+                ds.StudyDate = date_range
+            elif period or date_value:
                 ds.StudyDate = build_date_range(period, date_value)
 
             studies = []
@@ -143,8 +144,13 @@ class PACSClient:
                             {
                                 "number": len(studies) + 1,
                                 "uid": uid,
-                                "name": str(identifier.get("PatientName", "Unknown")),
+                                "name": str(
+                                    identifier.get("PatientName", "Unknown")
+                                ).replace("^", " ").strip(),
+                                "birth_date": str(identifier.get("PatientBirthDate", "")),
+                                "age": str(identifier.get("PatientAge", "")),
                                 "date": str(identifier.get("StudyDate", "")),
+                                "time": str(identifier.get("StudyTime", "")),
                                 "modality": str(identifier.get("ModalitiesInStudy", "")),
                                 "description": str(identifier.get("StudyDescription", "")),
                                 "series": str(identifier.get("NumberOfStudyRelatedSeries", "")),
@@ -160,24 +166,36 @@ class PACSClient:
     def download_study(
         self,
         study_uid: str,
+        lookup_metadata: bool = True,
     ) -> dict[str, Any]:
         """Скачивает исследование из PACS в локальную папку."""
         self.retrieval_cancelled = False
-        study_info = self._lookup_study_info(study_uid)
+        study_info = self._lookup_study_info(study_uid) if lookup_metadata else {}
         patient_name = study_info.get("PatientName", "")
         study_date = study_info.get("StudyDate", "")
         expected_instances = _safe_int(study_info.get("NumberOfStudyRelatedInstances"))
-        study_dir = self.output_dir / format_study_folder(patient_name, study_date)
+        study_dir = self.output_dir / (
+            format_study_folder(patient_name, study_date)
+            if lookup_metadata
+            else sanitize_study_uid(study_uid)
+        )
         study_dir.mkdir(parents=True, exist_ok=True)
-
-        yandex_folder = format_yandex_folder(patient_name, study_date)
 
         received_count = 0
         received_bytes = 0
+        patient_age = ""
+        patient_birth_date = ""
+        study_description = ""
+        study_time = ""
+        failed_suboperations = 0
+        warning_suboperations = 0
         start_time = time.time()
 
         def handle_store(event: Any) -> int:
             """Сохраняет один полученный DICOM-объект и обновляет статистику передачи."""
+            nonlocal patient_name, patient_age, patient_birth_date
+            nonlocal study_date, study_description, study_time
+            nonlocal received_bytes, received_count
             if self.retrieval_cancelled:
                 return 0xC000
             dataset = event.dataset
@@ -188,7 +206,18 @@ class PACSClient:
                 file_size = filename.stat().st_size
             except OSError:
                 file_size = 0
-            nonlocal received_bytes, received_count
+            if not patient_name:
+                patient_name = str(dataset.get("PatientName", ""))
+            if not patient_age:
+                patient_age = str(dataset.get("PatientAge", ""))
+            if not patient_birth_date:
+                patient_birth_date = str(dataset.get("PatientBirthDate", ""))
+            if not study_date:
+                study_date = str(dataset.get("StudyDate", ""))
+            if not study_time:
+                study_time = str(dataset.get("StudyTime", ""))
+            if not study_description:
+                study_description = str(dataset.get("StudyDescription", ""))
             received_bytes += file_size
             received_count += 1
             return 0x0000
@@ -212,10 +241,31 @@ class PACSClient:
             ds = Dataset()
             ds.QueryRetrieveLevel = "STUDY"
             ds.StudyInstanceUID = study_uid
-            for _status, _identifier in assoc.send_c_get(
+            for status, _identifier in assoc.send_c_get(
                 ds,
                 StudyRootQueryRetrieveInformationModelGet,
             ):
+                if status:
+                    failed_suboperations = int(
+                        getattr(status, "NumberOfFailedSuboperations", 0) or 0
+                    )
+                    warning_suboperations = int(
+                        getattr(status, "NumberOfWarningSuboperations", 0) or 0
+                    )
+                    completed = int(
+                        getattr(status, "NumberOfCompletedSuboperations", 0) or 0
+                    )
+                    remaining = int(
+                        getattr(status, "NumberOfRemainingSuboperations", 0) or 0
+                    )
+                    total_suboperations = (
+                        remaining
+                        + completed
+                        + failed_suboperations
+                        + warning_suboperations
+                    )
+                    if total_suboperations:
+                        expected_instances = max(expected_instances or 0, total_suboperations)
                 if self.retrieval_cancelled:
                     LOGGER.warning("Retrieval cancelled")
                     break
@@ -235,13 +285,30 @@ class PACSClient:
         if expected_instances is not None and received_count != expected_instances:
             LOGGER.warning("Expected %s instances but received %s", expected_instances, received_count)
 
+        yandex_folder = (
+            f"{format_yandex_folder(patient_name, study_date)}_"
+            f"{sanitize_study_uid(study_uid)}"
+        )
         return {
-            "ok": True,
+            "ok": (
+                received_count > 0
+                and failed_suboperations == 0
+                and warning_suboperations == 0
+                and (expected_instances is None or received_count == expected_instances)
+            ),
             "study_uid": study_uid,
             "study_dir": str(study_dir),
             "received_files": received_count,
             "received_bytes": received_bytes,
             "expected_instances": expected_instances,
+            "failed_suboperations": failed_suboperations,
+            "warning_suboperations": warning_suboperations,
+            "patient": patient_name,
+            "age": patient_age,
+            "birth_date": patient_birth_date,
+            "study_date": study_date,
+            "study_time": study_time,
+            "description": study_description,
             "duration": duration,
             "yandex_folder": yandex_folder,
         }
@@ -253,3 +320,8 @@ def _safe_int(value: Any) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def sanitize_study_uid(study_uid: str) -> str:
+    """Возвращает безопасное имя временной папки из StudyInstanceUID."""
+    return "".join(char if char.isalnum() or char in ".-_" else "_" for char in study_uid)

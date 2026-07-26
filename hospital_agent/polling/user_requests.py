@@ -26,14 +26,15 @@ def _mark_user_request_processed(
     current_request_id: str,
 ) -> None:
     """Запоминает завершенный или намеренно проигнорированный запрос."""
-    if current_request_id not in state.processed_user_request_ids:
-        state.processed_user_request_ids.append(current_request_id)
-    state.processed_user_request_ids = state.processed_user_request_ids[
-        -MAX_PROCESSED_USER_REQUEST_IDS:
-    ]
-    state.pending_user_request_results.pop(current_request_id, None)
-    state.last_user_request_id = current_request_id
-    save_state(config.state_file, state)
+    with state.lock:
+        if current_request_id not in state.processed_user_request_ids:
+            state.processed_user_request_ids.append(current_request_id)
+        state.processed_user_request_ids = state.processed_user_request_ids[
+            -MAX_PROCESSED_USER_REQUEST_IDS:
+        ]
+        state.pending_user_request_results.pop(current_request_id, None)
+        state.last_user_request_id = current_request_id
+        save_state(config.state_file, state)
 
 
 def _result_delivery(
@@ -44,7 +45,7 @@ def _result_delivery(
     ok: bool,
     retryable: bool = False,
     result: dict[str, Any] | None = None,
-    error: str | None = None,
+    errors: str | None = None,
 ) -> dict[str, Any] | None:
     """Формирует сохраняемое подтверждение результата для backend."""
     endpoint = request_payload.get("response_endpoint") or request_payload.get("callback_endpoint")
@@ -55,7 +56,7 @@ def _result_delivery(
         "ok": ok,
         "retryable": retryable,
         "result": result or {},
-        "error": error,
+        "errors": errors,
     }
     return {"endpoint": str(endpoint), "payload": payload}
 
@@ -76,8 +77,9 @@ def _finish_terminal_request(
 ) -> bool:
     """Надежно сохраняет terminal result до его подтверждения backend."""
     if delivery is not None:
-        state.pending_user_request_results[current_request_id] = delivery
-        save_state(config.state_file, state)
+        with state.lock:
+            state.pending_user_request_results[current_request_id] = delivery
+            save_state(config.state_file, state)
     if not _deliver_result(viewer, delivery):
         LOGGER.warning("Result acknowledgement failed for request %s", current_request_id)
         return False
@@ -103,20 +105,27 @@ def run_user_request(
 
     command = command_name(request_payload)
     if not command:
-        LOGGER.warning("User request has no command/action/type: %s", request_payload)
+        LOGGER.warning("User request has no command: %s", current_request_id)
         delivery = _result_delivery(
             config,
             request_payload,
             current_request_id,
             "",
             False,
-            error="command is required",
+            errors="command is required",
         )
         _finish_terminal_request(config, viewer, state, current_request_id, delivery)
         return False
 
     try:
-        result = execute_user_command(config, command, request_payload, current_request_id, viewer)
+        result = execute_user_command(
+            config,
+            command,
+            request_payload,
+            current_request_id,
+            viewer,
+            state,
+        )
         if result is None:
             LOGGER.info("Ignoring unsupported user request command: %s", command)
             delivery = _result_delivery(
@@ -125,7 +134,7 @@ def run_user_request(
                 current_request_id,
                 command,
                 False,
-                error=f"unsupported command: {command}",
+                errors=f"unsupported command: {command}",
             )
             _finish_terminal_request(config, viewer, state, current_request_id, delivery)
             return False
@@ -137,7 +146,7 @@ def run_user_request(
             current_request_id,
             command,
             False,
-            error=str(exc),
+            errors=str(exc),
         )
         _finish_terminal_request(config, viewer, state, current_request_id, delivery)
         return False
@@ -150,7 +159,7 @@ def run_user_request(
             command,
             False,
             retryable=True,
-            error=str(exc),
+            errors=str(exc),
         )
         _deliver_result(viewer, delivery)
         # Не помечаем запрос завершенным: backend может вернуть его снова,
@@ -178,8 +187,9 @@ def poll_user_requests(
     state: AgentState,
 ) -> int:
     """Опрашивает backend_url/user_requests и выполняет поддержанные команды."""
-    separator = "&" if "?" in polling.endpoint else "?"
-    endpoint = f"{polling.endpoint}{separator}{urlencode({'agent_id': config.agent_id})}"
+    endpoint_base = "/user_requests"
+    separator = "&" if "?" in endpoint_base else "?"
+    endpoint = f"{endpoint_base}{separator}{urlencode({'agent_id': config.agent_id})}"
     payload = viewer.get_json(endpoint)
     processed_count = 0
     for request_payload in iter_user_requests(payload):

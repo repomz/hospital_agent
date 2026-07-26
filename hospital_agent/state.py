@@ -2,6 +2,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from threading import RLock
 from typing import Any
 
 
@@ -13,11 +14,14 @@ class AgentState:
     """Локальное состояние hospital_agent между циклами polling."""
 
     processed_protocols: dict[str, str] = field(default_factory=dict)
-    last_agent_request_id: str | None = None
-    last_agent_request_ids: dict[str, str] = field(default_factory=dict)
     last_user_request_id: str | None = None
     processed_user_request_ids: list[str] = field(default_factory=list)
     pending_user_request_results: dict[str, dict[str, Any]] = field(default_factory=dict)
+    polling_enabled_at: dict[str, str] = field(default_factory=dict)
+    processed_modality_studies: dict[str, list[str]] = field(default_factory=dict)
+    yandex_cleanup: list[dict[str, Any]] = field(default_factory=list)
+    last_report_date: str | None = None
+    lock: Any = field(default_factory=RLock, repr=False, compare=False)
 
 
 def load_state(path: Path) -> AgentState:
@@ -59,30 +63,42 @@ def load_state(path: Path) -> AgentState:
         processed_protocols={
             str(key): str(value) for key, value in raw.get("processed_protocols", {}).items()
         },
-        last_agent_request_id=raw.get("last_agent_request_id"),
-        last_agent_request_ids={
-            str(key): str(value) for key, value in raw.get("last_agent_request_ids", {}).items()
-        },
         last_user_request_id=last_user_request_id,
         processed_user_request_ids=processed_user_request_ids,
         pending_user_request_results=pending_user_request_results,
+        polling_enabled_at={
+            str(key): str(value)
+            for key, value in raw.get("polling_enabled_at", {}).items()
+        },
+        processed_modality_studies={
+            str(key): [str(item) for item in value]
+            for key, value in raw.get("processed_modality_studies", {}).items()
+            if isinstance(value, list)
+        },
+        yandex_cleanup=[
+            item for item in raw.get("yandex_cleanup", []) if isinstance(item, dict)
+        ],
+        last_report_date=raw.get("last_report_date"),
     )
 
 
 def save_state(path: Path, state: AgentState) -> None:
     """Атомарно сохраняет состояние агента в JSON-файл."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "processed_protocols": state.processed_protocols,
-        "last_agent_request_id": state.last_agent_request_id,
-        "last_agent_request_ids": state.last_agent_request_ids,
-        "last_user_request_id": state.last_user_request_id,
-        "processed_user_request_ids": state.processed_user_request_ids,
-        "pending_user_request_results": state.pending_user_request_results,
-    }
-    temporary_path = path.with_name(f".{path.name}.tmp")
-    with temporary_path.open("w", encoding="utf-8") as file:
-        json.dump(payload, file, ensure_ascii=False, indent=2)
-        file.flush()
-        os.fsync(file.fileno())
-    temporary_path.replace(path)
+    with state.lock:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "processed_protocols": state.processed_protocols,
+            "last_user_request_id": state.last_user_request_id,
+            "processed_user_request_ids": state.processed_user_request_ids,
+            "pending_user_request_results": state.pending_user_request_results,
+            "polling_enabled_at": state.polling_enabled_at,
+            "processed_modality_studies": state.processed_modality_studies,
+            "yandex_cleanup": state.yandex_cleanup,
+            "last_report_date": state.last_report_date,
+        }
+        temporary_path = path.with_name(f".{path.name}.tmp")
+        with temporary_path.open("w", encoding="utf-8") as file:
+            json.dump(payload, file, ensure_ascii=False, indent=2)
+            file.flush()
+            os.fsync(file.fileno())
+        temporary_path.replace(path)

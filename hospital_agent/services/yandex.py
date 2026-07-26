@@ -1,13 +1,12 @@
-import logging
 import os
 import time
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
 import boto3
-
-
-LOGGER = logging.getLogger("hospital_agent.services.yandex")
+import pydicom
+from pydicom.errors import InvalidDicomError
 
 
 class YandexStorage:
@@ -56,8 +55,6 @@ class YandexStorage:
             except Exception:
                 if attempt < retry_attempts - 1:
                     time.sleep(retry_delay)
-                else:
-                    LOGGER.exception("Yandex upload failed: %s", file_path)
         return False
 
     def upload_folder(
@@ -72,13 +69,27 @@ class YandexStorage:
         uploaded_files = 0
         uploaded_bytes = 0
         failed_files: list[str] = []
+        uploaded_objects: list[dict[str, Any]] = []
 
-        for file_path in sorted(path for path in source.rglob("*") if path.is_file()):
+        files = [path for path in source.rglob("*") if path.is_file()]
+        for file_path in sorted(files, key=_dicom_sort_key):
             file_size = file_path.stat().st_size
-            object_name = f"{yandex_folder}/{file_path.name}"
+            relative_name = file_path.relative_to(source).as_posix()
+            object_name = f"{yandex_folder}/{relative_name}"
             if self.upload_dicom_with_retries(file_path, object_name, retry_attempts, retry_delay):
                 uploaded_files += 1
                 uploaded_bytes += file_size
+                uploaded_objects.append(
+                    {
+                        "name": relative_name,
+                        "size": file_size,
+                        "url": self.client.generate_presigned_url(
+                            "get_object",
+                            Params={"Bucket": self.bucket, "Key": object_name},
+                            ExpiresIn=int(timedelta(days=3).total_seconds()),
+                        ),
+                    }
+                )
             else:
                 failed_files.append(str(file_path))
 
@@ -87,4 +98,45 @@ class YandexStorage:
             "uploaded_files": uploaded_files,
             "uploaded_bytes": uploaded_bytes,
             "failed_files": failed_files,
+            "files": uploaded_objects,
+            "dicom_link": f"s3://{self.bucket}/{yandex_folder}",
         }
+
+    def delete_folder(self, yandex_folder: str) -> int:
+        """Удаляет все объекты исследования из Yandex Object Storage."""
+        deleted = 0
+        continuation_token: str | None = None
+        while True:
+            request: dict[str, Any] = {
+                "Bucket": self.bucket,
+                "Prefix": f"{yandex_folder.rstrip('/')}/",
+            }
+            if continuation_token:
+                request["ContinuationToken"] = continuation_token
+            response = self.client.list_objects_v2(**request)
+            objects = [{"Key": item["Key"]} for item in response.get("Contents", [])]
+            if objects:
+                self.client.delete_objects(
+                    Bucket=self.bucket,
+                    Delete={"Objects": objects, "Quiet": True},
+                )
+                deleted += len(objects)
+            if not response.get("IsTruncated"):
+                break
+            continuation_token = response.get("NextContinuationToken")
+        return deleted
+
+
+def _dicom_sort_key(path: Path) -> tuple[int, int, str]:
+    """Сортирует DICOM по серии и InstanceNumber, сохраняя стабильный fallback."""
+    try:
+        dataset = pydicom.dcmread(
+            str(path),
+            stop_before_pixels=True,
+            specific_tags=["SeriesNumber", "InstanceNumber"],
+        )
+        series_number = int(getattr(dataset, "SeriesNumber", 0) or 0)
+        instance_number = int(getattr(dataset, "InstanceNumber", 0) or 0)
+        return series_number, instance_number, path.as_posix()
+    except (OSError, ValueError, TypeError, AttributeError, InvalidDicomError):
+        return 0, 0, path.as_posix()

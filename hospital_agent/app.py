@@ -8,6 +8,21 @@ from .config import DEFAULT_CONFIG_PATH, load_agent_config
 from .runner import run_agent
 
 
+class AgentContextFilter(logging.Filter):
+    """Добавляет в каждую запись короткие имена агента и сервиса."""
+
+    def __init__(self, agent_id: str) -> None:
+        super().__init__()
+        self.agent_name = f"agent_{agent_id}"
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.agent_name = self.agent_name
+        record.service_name = record.name.removeprefix("hospital_agent.").replace(".", "/")
+        if record.service_name == "hospital_agent":
+            record.service_name = "runtime"
+        return True
+
+
 class DailyFileHandler(logging.Handler):
     """Пишет лог в файл текущей даты и переключает файл после полуночи."""
 
@@ -68,7 +83,11 @@ def resolve_config_path() -> Path:
     return Path(__file__).resolve().parent.parent / DEFAULT_CONFIG_PATH
 
 
-def setup_logging(log_dir: Path, background: bool | None = None) -> None:
+def setup_logging(
+    log_dir: Path,
+    background: bool | None = None,
+    agent_id: str = "unknown",
+) -> None:
     """Настраивает только файл для pythonw или только консоль для python."""
     if background is None:
         background = is_pythonw()
@@ -78,9 +97,15 @@ def setup_logging(log_dir: Path, background: bool | None = None) -> None:
     else:
         handlers = [logging.StreamHandler()]
 
+    context_filter = AgentContextFilter(agent_id)
+    for handler in handlers:
+        handler.addFilter(context_filter)
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+        format=(
+            "%(asctime)s | %(levelname)s | %(agent_name)s | "
+            "%(service_name)s | %(message)s"
+        ),
         handlers=handlers,
         force=True,
     )
@@ -100,7 +125,7 @@ def main() -> None:
         )
         raise
 
-    setup_logging(config.log_dir, background)
+    setup_logging(config.log_dir, background, config.agent_id)
     logging.getLogger("hospital_agent.startup").info(
         "Logging mode=%s",
         "daily_file" if background else "terminal",

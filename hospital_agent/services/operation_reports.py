@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import re
@@ -678,6 +677,37 @@ def shorten_operation_description(description):
             flags=re.IGNORECASE,
         )
         sentence = _apply_operation_abbreviations(sentence)
+        sentence = re.sub(
+            r"^(?:диагностическ\w*\s+катетер\w*\s+)?выполнена\s+АГ\b",
+            "АГ",
+            sentence,
+            flags=re.IGNORECASE,
+        )
+        sentence = re.sub(
+            r"^(?:далее\s+)?установлен\s+проводников\w*\s+катетер\s+в\s+"
+            r"[А-ЯA-Zа-яё0-9/]+(?:\s*,\s*|\.\s*$)",
+            "",
+            sentence,
+            flags=re.IGNORECASE,
+        )
+        sentence = re.sub(
+            r"\bпроводник\s+заведен\s+дистально\s+в\s+[^,.;]+,\s*",
+            "",
+            sentence,
+            flags=re.IGNORECASE,
+        )
+        sentence = re.sub(
+            r"\bстент\s+стент(?:ом|ами)\b",
+            "стент",
+            sentence,
+            flags=re.IGNORECASE,
+        )
+        sentence = re.sub(
+            r"\bпроведена\s+БАП\s+баллоном\b",
+            "БАП",
+            sentence,
+            flags=re.IGNORECASE,
+        )
         sentence = re.sub(r"\bв\s+условиях\b", "", sentence, flags=re.IGNORECASE)
         sentence = re.sub(r"\bбассейн\w*\b", "", sentence, flags=re.IGNORECASE)
         sentence = _clean_medical_text(sentence)
@@ -950,7 +980,7 @@ def generate_report(operations, start_period, end_period,
     
     with open(output_filepath, 'w', encoding='utf-8') as f:
         f.write("=" * 85 + "\n")
-        f.write(f"ОТЧЕТ ПО ОПЕРАЦИЯМ\n")
+        f.write("ОТЧЕТ ПО ОПЕРАЦИЯМ\n")
         f.write(f"Период: с {start_period.strftime('%d.%m.%Y %H:%M')} по {end_period.strftime('%d.%m.%Y %H:%M')}\n")
         f.write("-" * 85 + "\n")
         f.write(f"  Плановые:   {len(planned_ops)}\n")
@@ -1007,10 +1037,11 @@ def generate_operations_report(
     dir2: str = DEFAULT_TARGET_DIR_2,
     plan_dir: str = DEFAULT_PLAN_DIR,
     report_dir: str = DEFAULT_REPORT_DIR,
+    end_period: datetime | None = None,
 ) -> dict:
-    """Сканирует DOCX и формирует JSON-отчет по операциям."""
-    start_period = get_start_datetime(period, time_value)
-    end_period = datetime.now()
+    """Сканирует DOCX, сохраняет TXT и возвращает JSON-данные для backend."""
+    end_period = end_period or datetime.now()
+    start_period = end_period - timedelta(days=period)
     planned_patients, _ = get_plan_data(plan_dir, start_period)
     _, planned_details_today = get_plan_data(plan_dir, end_period)
 
@@ -1047,14 +1078,7 @@ def generate_operations_report(
         planned_details_today,
     )
 
-    report_path = Path(report_dir)
-    report_path.mkdir(parents=True, exist_ok=True)
-    json_report_path = report_path / f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    with json_report_path.open("w", encoding="utf-8") as file:
-        json.dump(payload, file, ensure_ascii=False, indent=2)
-
     return {
         "report": payload,
-        "json_report_file": str(json_report_path),
         "text_report_file": str(text_report_path),
     }

@@ -29,5 +29,5 @@ def iter_user_requests(payload: Any) -> list[dict[str, Any]]:
 
 
 def command_name(payload: dict[str, Any]) -> str:
-    """Извлекает имя команды из backend-запроса."""
-    return str(payload.get("command") or payload.get("action") or payload.get("type") or "").lower()
+    """Извлекает имя команды только из канонического поля command."""
+    return str(payload.get("command") or "").strip().lower()

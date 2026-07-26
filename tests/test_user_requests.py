@@ -21,7 +21,7 @@ class FakeViewer:
         self.get_endpoints.append(endpoint)
         return self.payload
 
-    def post_json(self, endpoint, payload):
+    def post_json(self, endpoint, payload, **kwargs):
         self.posts.append((endpoint, payload))
         return self.post_result
 
@@ -100,18 +100,25 @@ class UserRequestTests(unittest.TestCase):
     def test_generated_report_is_returned_as_command_result(self):
         generated = {
             "report": {"planned_count": 1},
-            "json_report_file": "report.json",
             "text_report_file": "report.txt",
         }
 
+        config = SimpleNamespace(
+            study_polling=SimpleNamespace(operations_dirs=[Path("one"), Path("two")]),
+            plan_dir=Path("plans"),
+            report_dir=Path("reports"),
+            agent_id="2",
+        )
+        viewer = FakeViewer()
         with patch(
             "hospital_agent.services.commands.generate_operations_report",
             return_value=generated,
         ):
-            result = generate_report_from_payload({})
+            result = generate_report_from_payload(config, {}, viewer)
 
         self.assertEqual(result["report"], {"planned_count": 1})
-        self.assertEqual(result["json_report_file"], "report.json")
+        self.assertEqual(result["text_report_file"], "report.txt")
+        self.assertEqual(viewer.posts[0][0], "/reports")
 
     def test_success_result_is_retried_without_reexecuting_command(self):
         viewer = FakeViewer(post_result=False)
@@ -145,6 +152,23 @@ class UserRequestTests(unittest.TestCase):
         self.assertEqual(endpoint, "/user_requests/durable-result/result")
         self.assertEqual(result["agent_id"], 2)
         self.assertTrue(result["ok"])
+
+    def test_action_and_type_are_not_accepted_as_commands(self):
+        viewer = FakeViewer()
+        payload = {
+            "id": "canonical-command-only",
+            "action": "get_report",
+            "response_endpoint": "/result",
+        }
+        with TemporaryDirectory() as tmp_dir:
+            config = SimpleNamespace(
+                state_file=Path(tmp_dir) / "state.json",
+                agent_id="2",
+            )
+            state = AgentState()
+            self.assertFalse(run_user_request(config, viewer, state, payload))
+
+        self.assertEqual(viewer.posts[-1][1]["errors"], "command is required")
 
 if __name__ == "__main__":
     unittest.main()
