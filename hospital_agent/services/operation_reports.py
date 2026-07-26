@@ -4,7 +4,7 @@ import os
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
-from zipfile import ZipFile
+from zipfile import BadZipFile, ZipFile
 import xml.etree.ElementTree as ET
 
 LOGGER = logging.getLogger("hospital_agent.services.operation_reports")
@@ -181,7 +181,7 @@ def read_docx_text(file_path):
                 full_text = re.sub(r'(Ф\.И\.О\. больного:[^\n]+?)(Диагноз)', r'\1\n\2', full_text)
                 
                 return full_text
-    except (OSError, KeyError, ET.ParseError) as exc:
+    except (BadZipFile, OSError, KeyError, ET.ParseError) as exc:
         LOGGER.warning("Cannot read DOCX file %s: %s", file_path, exc)
         return None
 
@@ -211,68 +211,91 @@ def parse_patient_from_content(content):
         return format_patient_short(fio), age
     return None, None
 
-def shorten_operation_name(operation):
-    """Сокращает название операции"""
-    operation = re.sub(r"\s+", " ", operation.replace("\xa0", " ")).strip()
-    operation = re.sub(r"\s+([.,])", r"\1", operation)
-    operation = re.sub(r"([.,])(?=[^\s\d])", r"\1 ", operation)
+def _clean_medical_text(value):
+    """Нормализует пробелы и пунктуацию медицинского текста."""
+    value = normalize_spaces(value)
+    value = re.sub(r"\s+([,.;:])", r"\1", value)
+    value = re.sub(r"([,;:])(?=[^\s\d])", r"\1 ", value)
+    value = re.sub(r"\.{2,}", ".", value)
+    return value.strip(" ,;")
 
-    operation = re.sub(r'Коронарография', 'КАГ.', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'Коронарошунтография', 'КАГ+шунтогр', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'Церебральная ангиография', 'ЦАГ.', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'Ангиография', 'АГ', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'тромбаспирация', 'ТА', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'реканализация', 'МР', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'реканализации', 'МР', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'стентирование', 'стент', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'ангиопластика', 'БАП', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'ангиопластикой', 'БАП', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'бифуркационное', 'биф', operation, flags=re.IGNORECASE)   
-    operation = re.sub(r'контрпульсатора', 'ВАБК', operation, flags=re.IGNORECASE) 
-    operation = re.sub(r'справа', 'прав', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'слева', 'лев', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'попытка', 'try', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'электрокардиостимулятора', 'ЭКС', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'кардиостимулятора', 'ЭКС', operation, flags=re.IGNORECASE)
-    
-    # Заменяем артерии
-    operation = re.sub(r'левой коронарной', 'стЛКА', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'передняя нисходящая', 'ПНА', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'передней нисходящей', 'ПНА', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'огибающая', 'ОА', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'огибающую', 'ОА', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'огибающей', 'ОА', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'ветвь тупого края', 'ВТК', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'прав\w*\s+коронарн\w*', 'ПКА', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'лева\w*\s+коронарн\w*', 'ЛКА', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'правая коронарная', 'ПКА', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'правой', 'ПКА', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'диагональная', 'ДА', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'медианной', 'МА', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'задняя нисходящая', 'ЗНА', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'заднюю нисходящую', 'ЗНА', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'заднебоковой', 'ЗБВ', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'базилярная артерия', 'БА', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'средняя мозговая артерия', 'СМА', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'задняя мозговая артерия', 'ЗМА', operation, flags=re.IGNORECASE)
-    
-    # Заменяем сегменты
-    operation = re.sub(r'проксимальн\w*\s+сегмент\w*', 'пр/3', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'средн\w*\s+сегмент\w*', 'ср/3', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'дистальн\w*\s+сегмент\w*', 'д/3', operation, flags=re.IGNORECASE)
-    
-    # Убираем лишнее
-    operation = re.sub(r'\,', '', operation)
-    operation = re.sub(r'\+', '', operation)
-    operation = re.sub(r'тотальная|селективная|транслюминальная|баллонной|баллонная|баллонного|внутриаортального|первичная|механической|механическая|артерии|артерий|артерию|ствол|окклюзия|установка', '', operation, flags=re.IGNORECASE)
-    operation = re.sub(r'\.{2,}', '.', operation)
-    operation = re.sub(r'\s+\.', '.', operation)
-    operation = re.sub(r'\s+', ' ', operation)
-    
+
+def _apply_operation_abbreviations(value):
+    """Применяет безопасные общеупотребительные сокращения операций и сосудов."""
+    replacements = (
+        (r"\bкоронарошунтограф\w*", "КАГ+шунтогр"),
+        (r"\bкоронарограф\w*", "КАГ"),
+        (r"\bцеребральн\w*\s+(?:пан)?ангиограф\w*", "ЦАГ"),
+        (r"\b(?:пан)?ангиограф\w*", "АГ"),
+        (r"\bтромб(?:о)?(?:аспирац|экстракц)\w*", "ТА"),
+        (r"\b(?:механическ\w*\s+)?реканализац\w*", "МР"),
+        (r"\bстентирован\w*", "стент"),
+        (r"\bанги(?:о|л)?пласт\w*", "БАП"),
+        (r"\bбифуркационн\w*", "биф"),
+        (r"\b(?:внутриаортальн\w*\s+)?контрпульсатор\w*", "ВАБК"),
+        (r"\bэлектрокардиостимулятор\w*|\bкардиостимулятор\w*", "ЭКС"),
+        (
+            r"\bствол\w*\s+лев\w*\s+коронарн\w*(?:\s+артери\w*)?",
+            "стЛКА",
+        ),
+        (r"\bпередн\w*\s+нисходящ\w*(?:\s+артери\w*)?", "ПНА"),
+        (r"\bогибающ\w*(?:\s+артери\w*)?", "ОА"),
+        (
+            r"\bвет(?:вь|ви|ка|ки|ке|ку|кой|ками)\s+тупого\s+края\b",
+            "ВТК",
+        ),
+        (r"\bправ\w*\s+коронарн\w*(?:\s+артери\w*)?", "ПКА"),
+        (r"\bлев\w*\s+коронарн\w*(?:\s+артери\w*)?", "ЛКА"),
+        (r"\bдиагональн\w*(?:\s+ветв\w*)?", "ДА"),
+        (r"\bзадн\w*\s+нисходящ\w*(?:\s+артери\w*)?", "ЗНА"),
+        (r"\bзаднебоков\w*(?:\s+ветв\w*)?", "ЗБВ"),
+        (r"\bбазилярн\w*\s+артери\w*", "БА"),
+        (r"\bсредн\w*\s+мозгов\w*\s+артери\w*", "СМА"),
+        (r"\bзадн\w*\s+мозгов\w*\s+артери\w*", "ЗМА"),
+        (r"\bпроксимальн\w*\s+сегмент\w*", "пр/3"),
+        (r"\bсредн\w*\s+сегмент\w*", "ср/3"),
+        (r"\bдистальн\w*\s+сегмент\w*", "д/3"),
+    )
+    for pattern, replacement in replacements:
+        value = re.sub(pattern, replacement, value, flags=re.IGNORECASE)
+    return _clean_medical_text(value)
+
+
+def shorten_operation_name(operation):
+    """Сокращает название операции без потери типа вмешательства и целевого сосуда."""
+    operation = _apply_operation_abbreviations(operation)
+    operation = re.sub(r"\bв\s+условиях\b", "", operation, flags=re.IGNORECASE)
+    operation = re.sub(r"\bбассейн\w*\b", "", operation, flags=re.IGNORECASE)
+    operation = re.sub(r"\bпопытк\w*\b", "поп.", operation, flags=re.IGNORECASE)
+    operation = re.sub(r"\btry\b", "поп.", operation, flags=re.IGNORECASE)
+    operation = re.sub(r"\bсправа\b", "прав.", operation, flags=re.IGNORECASE)
+    operation = re.sub(r"\bслева\b", "лев.", operation, flags=re.IGNORECASE)
+    operation = re.sub(
+        r"\b(?:локальн\w*|эндоваскулярн\w*|трансартериальн\w*|"
+        r"тотальн\w*|селективн\w*|транслюминальн\w*|первичн\w*)\b",
+        "",
+        operation,
+        flags=re.IGNORECASE,
+    )
+    operation = re.sub(
+        r"\b(?:баллонн\w*|механическ\w*|артери\w*|окклюзи\w*|установк\w*)\b",
+        "",
+        operation,
+        flags=re.IGNORECASE,
+    )
+    operation = re.sub(
+        r"\bиз\s+(?=(?:[IVX\d]+\s+)?ВТК\b)",
+        "",
+        operation,
+        flags=re.IGNORECASE,
+    )
+    operation = _clean_medical_text(operation)
+    operation = re.sub(r"\s+\.", ".", operation)
+    operation = re.sub(r"\s+", " ", operation).strip()
+
     if len(operation) > 100:
-        operation = operation[:97] + "..."
-    
-    return operation.strip()
+        operation = operation[:97].rstrip() + "..."
+    return operation
 
 def parse_operation_from_content(content):
     """Извлекает и сокращает название операции"""
@@ -303,7 +326,11 @@ def classify_operation(operation):
     
     has_stenting = 'стент' in op_lower
     has_angioplasty = 'бап' in op_lower or 'баллон' in op_lower
-    has_thrombaspiration = 'тромбэкстр' in op_lower or 'тромбаспир' in op_lower
+    has_thrombaspiration = (
+        'тромбэкстр' in op_lower
+        or 'тромбаспир' in op_lower
+        or re.search(r"\bта\b", op_lower)
+    )
     has_recanalization = 'мр' in op_lower or 'реканализ' in op_lower
     
     if is_tsag:
@@ -581,6 +608,91 @@ def parse_operation_description(content):
     return normalize_spaces(match.group(1)) if match else ""
 
 
+def _compact_access_sentence(sentence):
+    """Сжимает стандартное описание пункции до сосудистого доступа и размера."""
+    if not re.search(
+        r"\bпод\s+МИА\b.*?\bвыполнена\s+пункция\b",
+        sentence,
+        flags=re.IGNORECASE,
+    ):
+        return sentence
+    access_match = re.search(
+        r"\bпункция\s+(.+?)\s+по\s+[«“\"]?\s*Сельдингер\w*\s*[»”\"]?",
+        sentence,
+        flags=re.IGNORECASE,
+    )
+    size_match = re.search(r"\b(?:интродьюс+ер\w*\s+)?(\d+\s*F[r]?)\b", sentence)
+    if not access_match:
+        return sentence
+    access = _clean_medical_text(access_match.group(1))
+    size = re.sub(r"\s+", "", size_match.group(1)) if size_match else ""
+    return f"Доступ: {access}{f', {size}' if size else ''}."
+
+
+def shorten_operation_description(description):
+    """Сжимает описание операции, удаляя повторяющийся протокольный шаблон."""
+    text = _clean_medical_text(description)
+    if not text:
+        return ""
+
+    sentences = re.split(r"(?<=[.!?])\s+(?=[А-ЯA-ZА-ЯЁ])", text)
+    compacted = []
+    seen = set()
+    drop_patterns = (
+        r"^(?:поочередно\s+)?установлены\s+коронарные\s+диагностические\s+катетеры\b",
+        r"^далее\s+выполнена\s+церебральная\s+(?:пан)?ангиография\s+"
+        r"в\s+стандартных\s+проекциях\b",
+        r"^(?:инструменты\s+)?интродьюс+ер\w*\s+удален\w*.*"
+        r"(?:гемостаз|повязк)",
+        r"^коронарный\s+проводник\s+и\s+катетер\s+удалены\b",
+        r"^канюли\s+фиксированы\s+к\s+коже\s+лигатурой\b",
+    )
+    for sentence in sentences:
+        sentence = _compact_access_sentence(_clean_medical_text(sentence))
+        if any(re.search(pattern, sentence, flags=re.IGNORECASE) for pattern in drop_patterns):
+            continue
+
+        sentence = re.sub(
+            r"^(?:в\s+ходе\s+исследования\s+выявлено|заключение)\s*:\s*",
+            "",
+            sentence,
+            flags=re.IGNORECASE,
+        )
+        sentence = re.sub(r"^\s*далее\s+", "", sentence, flags=re.IGNORECASE)
+        sentence = re.sub(
+            r"\bпри\s+контрольном\s+контрастировании\b",
+            "Контроль:",
+            sentence,
+            flags=re.IGNORECASE,
+        )
+        sentence = re.sub(
+            r"\bпосле\s+оперативного\s+вмешательства\b",
+            "после вмешательства",
+            sentence,
+            flags=re.IGNORECASE,
+        )
+        sentence = re.sub(
+            r"\bпроходимость\s+артери\w*\s+восстановлена\s+в\s+полном\s+объеме\b",
+            "проходимость восстановлена",
+            sentence,
+            flags=re.IGNORECASE,
+        )
+        sentence = _apply_operation_abbreviations(sentence)
+        sentence = re.sub(r"\bв\s+условиях\b", "", sentence, flags=re.IGNORECASE)
+        sentence = re.sub(r"\bбассейн\w*\b", "", sentence, flags=re.IGNORECASE)
+        sentence = _clean_medical_text(sentence)
+        if not sentence:
+            continue
+
+        key = sentence.casefold().rstrip(".")
+        if key in seen:
+            continue
+        seen.add(key)
+        compacted.append(sentence.rstrip(".") + ".")
+
+    return _clean_medical_text(" ".join(compacted))
+
+
 def parse_recommendation(content):
     """Извлекает рекомендации после операции."""
     match = re.search(
@@ -633,7 +745,7 @@ def iter_operation_files(base_paths):
             continue
         for root, _dirs, filenames in os.walk(base_path):
             for filename in filenames:
-                if filename.lower().endswith(".docx"):
+                if filename.lower().endswith(".docx") and not filename.startswith("~$"):
                     files.append(Path(root) / filename)
     return sorted(files)
 

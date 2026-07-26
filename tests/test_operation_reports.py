@@ -1,10 +1,16 @@
 import unittest
 from datetime import datetime
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from hospital_agent.services.operation_reports import (
+    classify_operation,
     parse_birth_date_from_content,
     parse_operation_datetime,
     parse_recommendation,
+    read_docx_text,
+    shorten_operation_description,
+    shorten_operation_name,
 )
 
 
@@ -41,6 +47,45 @@ class OperationReportParsingTests(unittest.TestCase):
         )
 
         self.assertEqual(parse_recommendation(content), "наблюдение дежурного врача")
+
+    def test_operation_name_uses_requested_abbreviations(self):
+        cases = {
+            "Коронарография. В условиях ЭКМО": "КАГ. ЭКМО",
+            "Церебральная ангиография бассейна ОСА справа": "ЦАГ ОСА прав.",
+            (
+                "Коронарография. Локальная эндоваскулярная трансартериальная "
+                "тромбоаспирация из I ветки тупого края."
+            ): "КАГ. ТА I ВТК.",
+            "Попытка тромбоаспирации ВСА слева": "поп. ТА ВСА лев.",
+        }
+        for source, expected in cases.items():
+            with self.subTest(source=source):
+                self.assertEqual(shorten_operation_name(source), expected)
+
+    def test_operation_description_compacts_protocol_boilerplate(self):
+        description = (
+            "Под МИА 0,5% р-ром новокаина 10,0 мл, в положении на спине "
+            "выполнена пункция правой лучевой артерии по «Сельдингеру» "
+            "с установкой интродьюсера 6F. "
+            "Далее выполнена церебральная ангиография в стандартных проекциях. "
+            "Интродьюсер удален, гемостаз места пункции, наложена давящая повязка. "
+            "В ходе исследования выявлено: окклюзия средней мозговой артерии."
+        )
+
+        self.assertEqual(
+            shorten_operation_description(description),
+            "Доступ: правой лучевой артерии, 6F. окклюзия СМА.",
+        )
+
+    def test_invalid_docx_is_skipped_instead_of_raising(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "broken.docx"
+            path.write_text("not a zip archive", encoding="utf-8")
+
+            self.assertIsNone(read_docx_text(path))
+
+    def test_report_classification_recognizes_short_thrombaspiration(self):
+        self.assertEqual(classify_operation("ЦАГ. ТА СМА"), 2)
 
 
 if __name__ == "__main__":

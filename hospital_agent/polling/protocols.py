@@ -8,9 +8,11 @@ from typing import Any
 
 from ..services.operation_reports import (
     parse_operation_datetime,
+    parse_operation_description,
     parse_operation_from_content,
     parse_patient_from_content,
     read_docx_text,
+    shorten_operation_description,
 )
 
 from ..config import AgentConfig, PollingConfig
@@ -37,7 +39,11 @@ def iter_protocol_files(operations_dirs: list[Path]) -> list[Path]:
         if not operations_dir.exists():
             LOGGER.warning("Operations directory does not exist: %s", operations_dir)
             continue
-        files.extend(path for path in operations_dir.rglob("*") if path.suffix.lower() == ".docx")
+        files.extend(
+            path
+            for path in operations_dir.rglob("*")
+            if path.suffix.lower() == ".docx" and not path.name.startswith("~$")
+        )
     return sorted(files)
 
 
@@ -87,16 +93,6 @@ def department_from_record_number(record_number: str | None) -> str:
     if record_number.startswith("179"):
         return "неврология"
     return ""
-
-
-def parse_operation_description(content: str) -> str:
-    """Извлекает описание операции из раздела 'Описание операции:'."""
-    match = re.search(
-        r"Описание\s+операции\s*:\s*(.*?)(?=\s+Исход\s*:|\s+Рек-но\s*:|\s+Расходные\s+материалы|\s+Опер\.\s*:|$)",
-        content,
-        flags=re.IGNORECASE | re.DOTALL,
-    )
-    return _normalize_text(match.group(1)) if match else ""
 
 
 def parse_operation_duration_min(content: str) -> int:
@@ -151,10 +147,22 @@ def classify_study_type(operation: str) -> str:
     is_carotid = any(token in value for token in ("вса", "сонн", "каротид"))
     is_peripheral = any(
         token in value
-        for token in ("перифер", "нижн", "пба", "нпа", "подвздош", "бедрен")
+        for token in (
+            "перифер",
+            "нижн",
+            "пба",
+            "нпа",
+            "подвздош",
+            "бедрен",
+            "большеберц",
+            "малоберц",
+            "берцов",
+            "подколен",
+            "голен",
+        )
     )
 
-    if "тромбаспир" in value:
+    if "тромбаспир" in value or re.search(r"\bта\b", value):
         return "тромбаспирация"
     if "стент" in value:
         if is_carotid:
@@ -162,7 +170,10 @@ def classify_study_type(operation: str) -> str:
         if is_peripheral:
             return "стент_периферии"
         return "стент_кор"
-    if any(token in value for token in ("бап", "ангиопласт", "баллон")):
+    if any(
+        token in value
+        for token in ("бап", "ангиопласт", "ангилопласт", "баллон", "балон")
+    ):
         if is_carotid:
             return "бап_вса"
         if is_peripheral:
@@ -186,22 +197,41 @@ def parse_protocol(path: Path, agent_id: str) -> dict[str, Any] | None:
     patient, age = parse_patient_from_content(content)
     operation = parse_operation_from_content(content)
     study_id = parse_study_id(content)
-    if not operation_datetime or not patient or not operation or not study_id:
-        LOGGER.warning("Cannot parse required protocol fields: %s", path)
+    required_fields = {
+        "operation_datetime": operation_datetime,
+        "patient": patient,
+        "operation": operation,
+        "study_id": study_id,
+    }
+    missing_fields = [name for name, value in required_fields.items() if not value]
+    if missing_fields:
+        LOGGER.warning(
+            "Cannot parse required protocol fields for %s: missing=%s",
+            path,
+            ",".join(missing_fields),
+        )
         return None
 
     study_type = classify_study_type(operation)
-    surgeon = normalize_surgeon(parse_surgeon(content))
-    if not study_type or not surgeon:
+    raw_surgeon = parse_surgeon(content)
+    surgeon = normalize_surgeon(raw_surgeon)
+    if not study_type:
         LOGGER.warning(
-            "Cannot classify study_type or surgeon for protocol %s: operation=%r surgeon=%r",
+            "Cannot classify study_type for protocol %s: operation=%r",
             path,
             operation,
-            parse_surgeon(content),
+        )
+        return None
+    if not surgeon:
+        LOGGER.warning(
+            "Cannot classify surgeon for protocol %s: surgeon=%r",
+            path,
+            raw_surgeon,
         )
         return None
 
     record_number = parse_medical_record_number(content)
+    description = parse_operation_description(content)
     return {
         "study_id": study_id,
         "patient": patient,
@@ -209,7 +239,7 @@ def parse_protocol(path: Path, agent_id: str) -> dict[str, Any] | None:
         "department": department_from_record_number(record_number) or "не указано",
         "name_operation": operation,
         "study_type": study_type,
-        "descr_operation": parse_operation_description(content) or operation,
+        "descr_operation": shorten_operation_description(description) or operation,
         "time_beginning": _rfc3339(operation_datetime),
         "time_duration": parse_operation_duration_min(content),
         "surgeon": surgeon,
