@@ -22,9 +22,6 @@ from ..state import AgentState, save_state
 
 LOGGER = logging.getLogger("hospital_agent.protocols")
 STUDY_NAMESPACE = uuid.UUID("90153e75-8f87-4f1f-a874-6a0ef089cf68")
-ALLOWED_SURGEONS = ("идрисов", "шпилевой", "старков", "киргизов")
-
-
 def protocol_signature(path: Path) -> str:
     """Возвращает подпись файла по размеру и времени изменения."""
     stat = path.stat()
@@ -133,16 +130,14 @@ def parse_surgeon(content: str) -> str:
 
 
 def normalize_surgeon(value: str) -> str:
-    """Возвращает поддерживаемую backend фамилию хирурга."""
+    """Извлекает фамилию хирурга без проверки по фиксированному справочнику."""
     normalized = _normalize_text(value).lower().replace("ё", "е")
-    for surgeon in ALLOWED_SURGEONS:
-        if surgeon.replace("ё", "е") in normalized:
-            return surgeon
-    return ""
+    match = re.search(r"[а-яa-z][а-яa-z-]*", normalized, flags=re.IGNORECASE)
+    return match.group(0) if match else ""
 
 
 def classify_study_type(operation: str) -> str:
-    """Определяет backend study_type по названию операции."""
+    """Нормализует известный тип или возвращает сокращенное название операции."""
     value = _normalize_text(operation).lower().replace("ё", "е")
     is_carotid = any(token in value for token in ("вса", "сонн", "каротид"))
     is_peripheral = any(
@@ -183,7 +178,7 @@ def classify_study_type(operation: str) -> str:
         return "цаг"
     if any(token in value for token in ("каг", "коронарограф")):
         return "каг"
-    return ""
+    return value.rstrip(" .")
 
 
 def parse_protocol(path: Path, agent_id: str) -> dict[str, Any] | None:
@@ -215,16 +210,9 @@ def parse_protocol(path: Path, agent_id: str) -> dict[str, Any] | None:
     study_type = classify_study_type(operation)
     raw_surgeon = parse_surgeon(content)
     surgeon = normalize_surgeon(raw_surgeon)
-    if not study_type:
-        LOGGER.warning(
-            "Cannot classify study_type for protocol %s: operation=%r",
-            path,
-            operation,
-        )
-        return None
     if not surgeon:
         LOGGER.warning(
-            "Cannot classify surgeon for protocol %s: surgeon=%r",
+            "Cannot parse surgeon for protocol %s: surgeon=%r",
             path,
             raw_surgeon,
         )

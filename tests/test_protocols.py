@@ -27,7 +27,13 @@ class ProtocolMappingTests(unittest.TestCase):
 
     def test_surgeon_is_normalized_to_backend_value(self):
         self.assertEqual(normalize_surgeon("Идрисов Р.Ш."), "идрисов")
-        self.assertEqual(normalize_surgeon("неизвестный хирург"), "")
+        self.assertEqual(normalize_surgeon("Новый-Хирург А.Б."), "новый-хирург")
+
+    def test_unknown_operation_becomes_a_valid_study_type(self):
+        self.assertEqual(
+            classify_study_type("Имплантация двухкамерного ЭКС Apollo DR"),
+            "имплантация двухкамерного экс apollo dr",
+        )
 
     def test_protocol_payload_contains_compact_name_and_description(self):
         content = (
@@ -55,6 +61,29 @@ class ProtocolMappingTests(unittest.TestCase):
             payload["descr_operation"],
             "Доступ: правой лучевой артерии, 6F. выполнена ТА из I ВТК.",
         )
+
+    def test_protocol_accepts_new_operation_type_and_surgeon(self):
+        content = (
+            "Операция: 77 Имплантация двухкамерного ЭКС Apollo DR\n"
+            "Дата и время операции: 22.01.2026 10:30\n"
+            "Ф.И.О. больного: Иванов Иван Иванович, возраст 55\n"
+            "Описание операции: Имплантирован двухкамерный ЭКС. "
+            "Исход: удовлетворительный\n"
+            "Опер.:_______Петров А.Б."
+        )
+
+        with patch(
+            "hospital_agent.polling.protocols.read_docx_text",
+            return_value=content,
+        ):
+            payload = parse_protocol(Path("protocol.docx"), "1")
+
+        self.assertIsNotNone(payload)
+        self.assertEqual(
+            payload["study_type"],
+            "имплантация двухкамерного экс apollo dr",
+        )
+        self.assertEqual(payload["surgeon"], "петров")
 
 
 if __name__ == "__main__":

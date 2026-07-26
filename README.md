@@ -197,7 +197,7 @@ pythonw hospital_agent.py
 
 Каждые `alive_polling_interval_min` минут агент отправляет POST на `viewer_url/agent_status`. JSON содержит `agent_id` и `status`.
 
-JSON протокола операции соответствует backend-структуре `StudyRequest`: `study_id`, `patient`, `age`, `department`, `name_operation`, `study_type`, `descr_operation`, `time_beginning`, `time_duration`, `surgeon`, `dicom_link`. Тип исследования определяется из названия операции, а хирург нормализуется до фамилии из backend-справочника. JSON на `/xa_studies` и `/ct_studies` содержит `agent_id`, `request_id`, `query`, `studies`, `sent_at`.
+JSON протокола операции соответствует backend-структуре `StudyRequest`: `study_id`, `patient`, `age`, `department`, `name_operation`, `study_type`, `descr_operation`, `time_beginning`, `time_duration`, `surgeon`, `dicom_link`. Тип исследования определяется из названия операции, а хирург нормализуется до фамилии без проверки по фиксированным справочникам. JSON на `/xa_studies` и `/ct_studies` содержит `agent_id`, `request_id`, `query`, `studies`, `sent_at`.
 
 JSON отчета на `/reports` содержит границы периода, количество плановых и экстренных операций, списки выполненных операций и текущий план. Для пациентов текущего плана добавляется история предыдущих операций, если пациента удалось сопоставить по фамилии и дате рождения.
 
@@ -205,7 +205,7 @@ JSON отчета на `/reports` содержит границы периода
 
 - `study_id` — номер после `Операция:`.
 - `patient`, `age`, `time_beginning`, `name_operation` — существующие парсеры из `hospital_agent.services.operation_reports`.
-- `study_type` — классификация названия операции в один из типов backend.
+- `study_type` — нормализованный известный тип либо сокращенное название новой операции.
 - `department` — по номеру после `Карта стационарного больного`: `44` = `кардиология`, `42` = `рсц`, `26` = `сосудистая хирургия`, `179` = `неврология`.
 - `descr_operation` — текст после `Описание операции:` до `Исход:`, `Рек-но:`,
   `Расходные материалы` или `Опер.:`; шаблонные фразы доступа и завершения
