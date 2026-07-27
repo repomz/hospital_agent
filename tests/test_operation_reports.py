@@ -4,6 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from hospital_agent.services.operation_reports import (
+    _operations_in_period,
     classify_operation,
     operation_summary,
     parse_birth_date_from_content,
@@ -17,6 +18,20 @@ from hospital_agent.services.operation_reports import (
 
 
 class OperationReportParsingTests(unittest.TestCase):
+    def test_duty_period_does_not_duplicate_operation_at_0800_boundary(self):
+        start = datetime(2026, 7, 26, 8, 0)
+        end = datetime(2026, 7, 27, 8, 0)
+        operations = [
+            {"id": "before", "datetime": datetime(2026, 7, 26, 7, 59)},
+            {"id": "start", "datetime": start},
+            {"id": "inside", "datetime": datetime(2026, 7, 27, 7, 59)},
+            {"id": "end", "datetime": end},
+        ]
+
+        selected = _operations_in_period(operations, start, end)
+
+        self.assertEqual([operation["id"] for operation in selected], ["start", "inside"])
+
     def test_operation_datetime_allows_spaces_around_separator(self):
         content = "Дата и время операции: 20 .04.2026 23:30"
 

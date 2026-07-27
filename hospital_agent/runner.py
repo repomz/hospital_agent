@@ -120,7 +120,7 @@ def _run_scheduled_report(
     viewer: ViewerClient,
     state: AgentState,
 ) -> None:
-    """Один раз в день создает дежурный отчет после report_time."""
+    """Один раз в день создает отчет за завершившееся в 08:00 дежурство."""
     now = datetime.now()
     try:
         report_hour, report_minute = [
@@ -134,11 +134,17 @@ def _run_scheduled_report(
         return
     if (now.hour, now.minute) < (report_hour, report_minute):
         return
-    generate_report_from_payload(config, {"period": 1}, viewer)
+    period = _scheduled_report_period(now)
+    generate_report_from_payload(config, {"period": period}, viewer)
     with state.lock:
         state.last_report_date = today
         save_state(config.state_file, state)
-    LOGGER.info("Duty report sent for %s", today)
+    LOGGER.info("Duty report sent for %s: period_days=%s", today, period)
+
+
+def _scheduled_report_period(now: datetime) -> int:
+    """Возвращает три дня в понедельник и один день в остальные дни."""
+    return 3 if now.weekday() == 0 else 1
 
 
 def run_agent(config: AgentConfig) -> int:

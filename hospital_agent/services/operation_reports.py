@@ -1051,11 +1051,11 @@ def generate_operations_report(
         if operation:
             all_operations.append(operation)
 
-    period_operations = [
-        operation
-        for operation in all_operations
-        if start_period <= operation["datetime"] <= end_period
-    ]
+    period_operations = _operations_in_period(
+        all_operations,
+        start_period,
+        end_period,
+    )
 
     text_report_path = Path(
         generate_report(
@@ -1082,3 +1082,12 @@ def generate_operations_report(
         "report": payload,
         "text_report_file": str(text_report_path),
     }
+
+
+def _operations_in_period(operations, start_period, end_period):
+    """Выбирает операции из полуоткрытого интервала [начало, конец)."""
+    return [
+        operation
+        for operation in operations
+        if start_period <= operation["datetime"] < end_period
+    ]

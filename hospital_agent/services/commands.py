@@ -247,10 +247,7 @@ def generate_report_from_payload(
     operations_dirs = config.study_polling.operations_dirs or []
     dir1 = str(operations_dirs[0]) if operations_dirs else ""
     dir2 = str(operations_dirs[1]) if len(operations_dirs) > 1 else ""
-    now = datetime.now()
-    duty_end = now.replace(hour=8, minute=0, second=0, microsecond=0)
-    if now < duty_end:
-        duty_end -= timedelta(days=1)
+    duty_end = _last_completed_duty_end(datetime.now())
     result = generate_operations_report(
         period=period,
         time_value="08:00",
@@ -270,3 +267,9 @@ def generate_report_from_payload(
     return {
         "report": result["report"],
     }
+
+
+def _last_completed_duty_end(now: datetime) -> datetime:
+    """Возвращает последнюю наступившую границу дежурства 08:00."""
+    duty_end = now.replace(hour=8, minute=0, second=0, microsecond=0)
+    return duty_end if now >= duty_end else duty_end - timedelta(days=1)
