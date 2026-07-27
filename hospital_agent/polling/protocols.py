@@ -12,6 +12,7 @@ from ..services.operation_reports import (
     parse_operation_from_content,
     parse_patient_from_content,
     read_docx_text,
+    is_operation_docx_candidate,
     shorten_operation_description,
 )
 
@@ -22,6 +23,9 @@ from ..state import AgentState, save_state
 
 LOGGER = logging.getLogger("hospital_agent.protocols")
 STUDY_NAMESPACE = uuid.UUID("90153e75-8f87-4f1f-a874-6a0ef089cf68")
+MAX_PROCESSED_PROTOCOL_KEYS = 10000
+
+
 def protocol_signature(path: Path) -> str:
     """Возвращает подпись файла по размеру и времени изменения."""
     stat = path.stat()
@@ -39,7 +43,7 @@ def iter_protocol_files(operations_dirs: list[Path]) -> list[Path]:
         files.extend(
             path
             for path in operations_dir.rglob("*")
-            if path.suffix.lower() == ".docx" and not path.name.startswith("~$")
+            if is_operation_docx_candidate(path)
         )
     return sorted(files)
 
@@ -56,6 +60,18 @@ def _protocol_uuid(path: Path, signature: str) -> uuid.UUID:
     return uuid.uuid5(STUDY_NAMESPACE, f"{path.resolve()}:{signature}")
 
 
+def protocol_identity(payload: dict[str, Any]) -> str:
+    """Возвращает ключ одной операции независимо от имени и расположения DOCX."""
+    raw = "|".join(
+        (
+            str(payload.get("study_id") or "").strip(),
+            str(payload.get("time_beginning") or "").strip(),
+            str(payload.get("patient") or "").casefold().replace("ё", "е").strip(),
+        )
+    )
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
 def _normalize_text(value: str) -> str:
     """Нормализует пробелы в извлеченном из DOCX тексте."""
     return re.sub(r"\s+", " ", value.replace("\xa0", " ")).strip()
@@ -63,7 +79,11 @@ def _normalize_text(value: str) -> str:
 
 def parse_study_id(content: str) -> str | None:
     """Извлекает номер операции после поля 'Операция:'."""
-    match = re.search(r"Операция\s*:\s*(\d+)", content, flags=re.IGNORECASE)
+    match = re.search(
+        r"О[ \t]*п[ \t]*е[ \t]*р[ \t]*а[ \t]*ц[ \t]*и[ \t]*я\s*:\s*(\d+)",
+        content,
+        flags=re.IGNORECASE,
+    )
     return match.group(1) if match else None
 
 
@@ -155,7 +175,7 @@ def classify_study_type(operation: str) -> str:
             "подколен",
             "голен",
         )
-    )
+    ) or re.search(r"\bнк\b", value) is not None
 
     if "тромбаспир" in value or re.search(r"\bта\b", value):
         return "тромбаспирация"
@@ -209,14 +229,7 @@ def parse_protocol(path: Path, agent_id: str) -> dict[str, Any] | None:
 
     study_type = classify_study_type(operation)
     raw_surgeon = parse_surgeon(content)
-    surgeon = normalize_surgeon(raw_surgeon)
-    if not surgeon:
-        LOGGER.warning(
-            "Cannot parse surgeon for protocol %s: surgeon=%r",
-            path,
-            raw_surgeon,
-        )
-        return None
+    surgeon = normalize_surgeon(raw_surgeon) or "не указано"
 
     record_number = parse_medical_record_number(content)
     description = parse_operation_description(content)
@@ -243,6 +256,7 @@ def poll_operation_protocols(
 ) -> int:
     """Ищет новые DOCX-протоколы и отправляет их JSON на viewer /studies."""
     sent_count = 0
+    known_protocol_keys = set(state.processed_protocol_keys)
     for path in iter_protocol_files(polling.operations_dirs or []):
         signature = protocol_signature(path)
         state_key = str(path.resolve())
@@ -251,11 +265,28 @@ def poll_operation_protocols(
 
         payload = parse_protocol(path, config.agent_id)
         if payload is None:
+            # Не повторяем ошибку на каждом polling. Если файл исправят,
+            # размер или mtime изменится, подпись станет новой и он обработается снова.
+            with state.lock:
+                state.processed_protocols[state_key] = signature
+                save_state(config.state_file, state)
+            continue
+
+        identity = protocol_identity(payload)
+        if identity in known_protocol_keys:
+            with state.lock:
+                state.processed_protocols[state_key] = signature
+                save_state(config.state_file, state)
             continue
 
         if viewer.post_json("/studies", payload):
             with state.lock:
                 state.processed_protocols[state_key] = signature
+                known_protocol_keys.add(identity)
+                state.processed_protocol_keys.append(identity)
+                state.processed_protocol_keys = state.processed_protocol_keys[
+                    -MAX_PROCESSED_PROTOCOL_KEYS:
+                ]
                 save_state(config.state_file, state)
             sent_count += 1
             LOGGER.info("Sent: %s", path)

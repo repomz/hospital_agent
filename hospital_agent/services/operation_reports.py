@@ -164,7 +164,6 @@ def read_docx_text(file_path):
                             for text_elem in child.findall('.//w:t', ns):
                                 if text_elem.text:
                                     para_text.append(text_elem.text)
-                            para_text.append(' ')
                     if para_text:
                         texts.append(''.join(para_text).strip())
                 
@@ -185,16 +184,20 @@ def read_docx_text(file_path):
         return None
 
 def parse_operation_datetime(content):
-    """Извлекает дату и время операции"""
+    """Извлекает дату и время операции, включая разрывы цифр пробелами."""
     pattern = (
         r"Дата\s+и\s+время\s+операции\s*:\s*"
-        r"(\d{1,2})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{4})\s+"
-        r"(\d{1,2})\s*:\s*(\d{2})"
+        r"(\d(?:\s*\d)?)\s*[./-]\s*(\d(?:\s*\d)?)\s*[./-]\s*"
+        r"(\d\s*\d\s*\d\s*\d)\s+"
+        r"(\d(?:\s*\d)?)\s*:\s*(\d\s*\d)"
     )
-    match = re.search(pattern, content)
+    match = re.search(pattern, content, flags=re.IGNORECASE)
     if match:
         try:
-            day, month, year, hour, minute = (int(value) for value in match.groups())
+            day, month, year, hour, minute = (
+                int(re.sub(r"\s+", "", value))
+                for value in match.groups()
+            )
             return datetime(year, month, day, hour, minute)
         except ValueError:
             return None
@@ -288,6 +291,12 @@ def shorten_operation_name(operation):
         operation,
         flags=re.IGNORECASE,
     )
+    operation = re.sub(
+        r"\bТА\s*/\s*ТА\b",
+        "ТА",
+        operation,
+        flags=re.IGNORECASE,
+    )
     operation = _clean_medical_text(operation)
     operation = re.sub(r"\s+\.", ".", operation)
     operation = re.sub(r"\s+", " ", operation).strip()
@@ -299,9 +308,9 @@ def shorten_operation_name(operation):
 def parse_operation_from_content(content):
     """Извлекает и сокращает название операции"""
     patterns = [
-        r"Операционная №\s*\d+\.?\s*(.+?)(?:\n|$)",
-        r"Операция:\s*\d+\s*Операционная\s*\d+\.?\s*(.+?)(?:\n|$)",
-        r"Операция:\s*\d+\s*(.+?)(?:\n|$)",
+        r"Операционная №\s*\d+\.?[ \t]*([^\r\n]+)",
+        r"Операция:\s*\d+[ \t]*Операционная\s*№?\s*\d+\.?[ \t]*([^\r\n]+)",
+        r"Операция:\s*\d+[ \t]*([^\r\n]+)",
     ]
     
     operation = None
@@ -313,8 +322,69 @@ def parse_operation_from_content(content):
     
     if operation:
         operation = operation.split('Карта стационарного больного')[0].strip()
-        return shorten_operation_name(operation)
-    return None
+        if operation.strip(" .,:;-"):
+            return shorten_operation_name(operation)
+    return infer_operation_from_description(parse_operation_description(content))
+
+
+def infer_operation_from_description(description):
+    """Восстанавливает название операции из описания при пустом заголовке."""
+    if not description:
+        return None
+    compact = _apply_operation_abbreviations(description)
+    lowered = compact.lower()
+    performed_sentences = [
+        sentence
+        for sentence in re.split(r"(?<=[.!?])\s+", description)
+        if re.search(
+            r"\b(?:выполн\w*|проведен\w*|произведен\w*|осуществлен\w*)\b"
+            r".{0,160}\b(?:реканализац\w*|анги(?:о|л)?пласт\w*|"
+            r"стентирован\w*|тромб(?:о)?(?:аспирац|экстракц)\w*)\b"
+            r"|\b(?:имплантир\w*|установлен\w*)\s+стент\b",
+            sentence,
+            flags=re.IGNORECASE,
+        )
+    ]
+    intervention_text = _apply_operation_abbreviations(" ".join(performed_sentences))
+    intervention_lowered = intervention_text.lower()
+
+    if (
+        ("нижн" in lowered and "конечност" in lowered)
+        or any(token in lowered for token in ("подколенн", "голени", "берцов"))
+    ) and "бап" in intervention_lowered:
+        return "БАП артерий НК"
+
+    if "цаг" in lowered or "церебраль" in lowered:
+        return "ЦАГ. ТА" if "та" in intervention_lowered else "ЦАГ"
+
+    if "каг" not in lowered and "коронар" not in lowered:
+        return None
+
+    interventions = [
+        label
+        for pattern, label in (
+            (r"\bМР\b", "МР"),
+            (r"\bБАП\b", "БАП"),
+            (r"\bстент\b", "стент"),
+        )
+        if re.search(pattern, intervention_text, flags=re.IGNORECASE)
+    ]
+    if not interventions:
+        return "КАГ"
+
+    targets = []
+    for target in re.findall(
+        r"\b(?:стЛКА|ПНА|ПКА|ОА|ВТК(?:\s*\d+)?|ДА|ЗНА|ЗБВ)\b",
+        intervention_text,
+        flags=re.IGNORECASE,
+    ):
+        normalized = target.upper().replace("СТЛКА", "стЛКА")
+        if normalized not in targets:
+            targets.append(normalized)
+
+    intervention_name = ", ".join(interventions)
+    target_name = f" {'/'.join(targets)}" if targets else ""
+    return shorten_operation_name(f"КАГ, {intervention_name}{target_name}")
 
 def classify_operation(operation):
     """Классифицирует операцию по типу вмешательства для статистики отчета."""
@@ -599,8 +669,9 @@ def department_from_record_number(record_number):
 def parse_operation_description(content):
     """Извлекает описание операции из протокола."""
     match = re.search(
-        r"Описание\s+операции\s*:\s*(.*?)(?=\s+Исход\s*:|\s+Рек-но\s*:|"
-        r"\s+Расходные\s+материалы|\s+Опер\.\s*:|$)",
+        r"Описание\s+операции\s*:\s*(.*?)"
+        r"(?=\s*(?:Исход\s*:|Рек-но\s*:|Рекомендовано\s*:|"
+        r"Расходные\s+материалы|Опер\.\s*:)|$)",
         content,
         flags=re.IGNORECASE | re.DOTALL,
     )
@@ -610,7 +681,7 @@ def parse_operation_description(content):
 def _compact_access_sentence(sentence):
     """Сжимает стандартное описание пункции до сосудистого доступа и размера."""
     if not re.search(
-        r"\bпод\s+МИА\b.*?\bвыполнена\s+пункция\b",
+        r"\bпункци\w*\b.+?\bпо\s+[«“\"]?\s*Сельдингер\w*",
         sentence,
         flags=re.IGNORECASE,
     ):
@@ -762,6 +833,21 @@ def truncate_text(value, limit=120):
     return text[: limit - 3].rstrip() + "..."
 
 
+def is_operation_docx_candidate(path):
+    """Отбрасывает временные, пустые и неподходящие файлы до чтения DOCX."""
+    path = Path(path)
+    if (
+        not path.is_file()
+        or path.suffix.lower() != ".docx"
+        or path.name.startswith("~$")
+    ):
+        return False
+    try:
+        return path.stat().st_size > 0
+    except OSError:
+        return False
+
+
 def iter_operation_files(base_paths):
     """Ищет DOCX-протоколы операций в одной или нескольких папках."""
     if isinstance(base_paths, str):
@@ -775,8 +861,9 @@ def iter_operation_files(base_paths):
             continue
         for root, _dirs, filenames in os.walk(base_path):
             for filename in filenames:
-                if filename.lower().endswith(".docx") and not filename.startswith("~$"):
-                    files.append(Path(root) / filename)
+                path = Path(root) / filename
+                if is_operation_docx_candidate(path):
+                    files.append(path)
     return sorted(files)
 
 
@@ -1050,6 +1137,7 @@ def generate_operations_report(
         operation = analyze_operation_file(file_path)
         if operation:
             all_operations.append(operation)
+    all_operations = _deduplicate_operations(all_operations)
 
     period_operations = _operations_in_period(
         all_operations,
@@ -1091,3 +1179,20 @@ def _operations_in_period(operations, start_period, end_period):
         for operation in operations
         if start_period <= operation["datetime"] < end_period
     ]
+
+
+def _deduplicate_operations(operations):
+    """Убирает копии одного протокола из разных папок и под разными именами."""
+    unique = []
+    seen = set()
+    for operation in operations:
+        identity = (
+            str(operation.get("patient") or "").casefold().replace("ё", "е").strip(),
+            operation.get("datetime"),
+            str(operation.get("operation") or "").casefold().strip(),
+        )
+        if identity in seen:
+            continue
+        seen.add(identity)
+        unique.append(operation)
+    return unique

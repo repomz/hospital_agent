@@ -106,13 +106,18 @@ def find_operation_protocols(
     payload: dict[str, Any],
 ) -> dict[str, Any]:
     """Ищет и возвращает стандартизованные протоколы операций по фамилии."""
-    from ..polling.protocols import iter_protocol_files, parse_protocol
+    from ..polling.protocols import (
+        iter_protocol_files,
+        parse_protocol,
+        protocol_identity,
+    )
 
     patient = str(payload.get("patient") or payload.get("patient_name") or "").strip()
     if not patient:
         raise ValueError("find_study requires patient")
     needle = patient.casefold().replace("ё", "е")
     protocols = []
+    seen_protocols = set()
     for path in iter_protocol_files(config.study_polling.operations_dirs or []):
         parsed = parse_protocol(path, config.agent_id)
         if parsed is None:
@@ -120,6 +125,10 @@ def find_operation_protocols(
         parsed_patient = str(parsed.get("patient", "")).casefold().replace("ё", "е")
         if needle not in parsed_patient:
             continue
+        identity = protocol_identity(parsed)
+        if identity in seen_protocols:
+            continue
+        seen_protocols.add(identity)
         protocols.append(parsed)
     return {"patient": patient, "protocols": protocols}
 

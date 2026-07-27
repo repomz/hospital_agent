@@ -4,11 +4,15 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from hospital_agent.services.operation_reports import (
+    _deduplicate_operations,
     _operations_in_period,
     classify_operation,
+    iter_operation_files,
     operation_summary,
     parse_birth_date_from_content,
+    parse_operation_description,
     parse_operation_datetime,
+    parse_operation_from_content,
     parse_recommendation,
     previous_operation_summary,
     read_docx_text,
@@ -18,6 +22,19 @@ from hospital_agent.services.operation_reports import (
 
 
 class OperationReportParsingTests(unittest.TestCase):
+    def test_report_deduplicates_same_operation_from_different_files(self):
+        operation = {
+            "patient": "Иванов И.И.",
+            "datetime": datetime(2026, 7, 27, 7, 30),
+            "operation": "КАГ",
+            "source_file": "first.docx",
+        }
+        duplicate = {**operation, "source_file": "copy.docx"}
+
+        result = _deduplicate_operations([operation, duplicate])
+
+        self.assertEqual(result, [operation])
+
     def test_duty_period_does_not_duplicate_operation_at_0800_boundary(self):
         start = datetime(2026, 7, 26, 8, 0)
         end = datetime(2026, 7, 27, 8, 0)
@@ -39,6 +56,40 @@ class OperationReportParsingTests(unittest.TestCase):
             parse_operation_datetime(content),
             datetime(2026, 4, 20, 23, 30),
         )
+
+    def test_operation_datetime_allows_spaces_inside_digits(self):
+        cases = {
+            "Дата и время операции: 25.04.2026 14:4 0": datetime(
+                2026, 4, 25, 14, 40
+            ),
+            "Дата и время операции: 1 9 .02.2026 13 : 00": datetime(
+                2026, 2, 19, 13, 0
+            ),
+        }
+        for content, expected in cases.items():
+            with self.subTest(content=content):
+                self.assertEqual(parse_operation_datetime(content), expected)
+
+    def test_operation_is_inferred_when_header_has_no_name(self):
+        content = (
+            "Операция: 217 Операционная №2.\n"
+            "Описание операции: выполнена ангиография артерий нижней конечности, "
+            "проведена ангиопластика подколенной артерии и артерий голени. "
+            "Исход: удовлетворительный"
+        )
+
+        self.assertEqual(parse_operation_from_content(content), "БАП артерий НК")
+
+    def test_empty_and_word_lock_files_are_not_operation_candidates(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "empty.docx").touch()
+            (root / "~$locked.docx").write_bytes(b"temporary")
+            expected = root / "operation.docx"
+            expected.write_bytes(b"non-empty")
+            (root / "notes.txt").write_text("not a protocol", encoding="utf-8")
+
+            self.assertEqual(iter_operation_files([root]), [expected])
 
     def test_operation_date_is_not_used_as_birth_date(self):
         content = (
@@ -74,6 +125,7 @@ class OperationReportParsingTests(unittest.TestCase):
                 "тромбоаспирация из I ветки тупого края."
             ): "КАГ. ТА I ВТК.",
             "Попытка тромбоаспирации ВСА слева": "поп. ТА ВСА лев.",
+            "Частичная ЦАГ. ТА/ТА из СМА": "Частичная ЦАГ. ТА из СМА",
         }
         for source, expected in cases.items():
             with self.subTest(source=source):
@@ -92,6 +144,31 @@ class OperationReportParsingTests(unittest.TestCase):
         self.assertEqual(
             shorten_operation_description(description),
             "Доступ: правой лучевой артерии, 6F. окклюзия СМА.",
+        )
+
+    def test_access_is_compacted_without_word_performed(self):
+        description = (
+            "Под МИА новокаином 0,5% 10 мл пункция правой бедренной артерии "
+            "по “Сельдингеру” с установкой интродьюсера 6 Fr. "
+            "Проведена ангиография артерий нижней конечности."
+        )
+
+        self.assertEqual(
+            shorten_operation_description(description),
+            "Доступ: правой бедренной артерии, 6Fr. "
+            "Проведена АГ артерий нижней конечности.",
+        )
+
+    def test_description_stops_at_outcome_without_intermediate_space(self):
+        content = (
+            "Описание операции: Кровоток после вмешательства TIMI 3."
+            "Исход: переведен в отделение."
+            "Рекомендовано: наблюдение."
+        )
+
+        self.assertEqual(
+            parse_operation_description(content),
+            "Кровоток после вмешательства TIMI 3.",
         )
 
     def test_invalid_docx_is_skipped_instead_of_raising(self):

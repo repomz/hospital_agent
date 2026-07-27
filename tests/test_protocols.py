@@ -1,15 +1,25 @@
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from tempfile import TemporaryDirectory
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
+from hospital_agent.config import PollingConfig
 from hospital_agent.polling.protocols import (
     classify_study_type,
+    iter_protocol_files,
     normalize_surgeon,
     parse_protocol,
+    parse_study_id,
+    poll_operation_protocols,
 )
+from hospital_agent.state import AgentState
 
 
 class ProtocolMappingTests(unittest.TestCase):
+    def test_study_id_allows_spaces_inside_operation_label(self):
+        self.assertEqual(parse_study_id("О перация: 559"), "559")
+
     def test_study_type_classification(self):
         cases = {
             "КАГ": "каг",
@@ -17,6 +27,7 @@ class ProtocolMappingTests(unittest.TestCase):
             "Стентирование ВСА слева": "стент_вса",
             "Стентирование коронарных артерий": "стент_кор",
             "Баллонная ангиопластика нижней конечности": "бап_периферии",
+            "БАП артерий НК": "бап_периферии",
             "АГ балонная ангилопластика задней большеберцовой": "бап_периферии",
             "Тромбаспирация": "тромбаспирация",
             "ТА": "тромбаспирация",
@@ -84,6 +95,99 @@ class ProtocolMappingTests(unittest.TestCase):
             "имплантация двухкамерного экс apollo dr",
         )
         self.assertEqual(payload["surgeon"], "петров")
+
+    def test_protocol_uses_placeholder_when_surgeon_is_missing(self):
+        content = (
+            "Операция: 738 Операционная №1. Коронарография\n"
+            "Дата и время операции: 09.04.2026 14:35\n"
+            "Ф.И.О. больного: Иванова Нина Алексеевна, возраст 75 лет\n"
+            "Описание операции: выполнена селективная коронарография. "
+            "Исход: удовлетворительный"
+        )
+
+        with patch(
+            "hospital_agent.polling.protocols.read_docx_text",
+            return_value=content,
+        ):
+            payload = parse_protocol(Path("protocol.docx"), "1")
+
+        self.assertIsNotNone(payload)
+        self.assertEqual(payload["surgeon"], "не указано")
+
+    def test_empty_and_word_lock_files_are_not_discovered(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "empty.docx").touch()
+            (root / "~$locked.docx").write_bytes(b"temporary")
+            expected = root / "operation.docx"
+            expected.write_bytes(b"non-empty")
+
+            self.assertEqual(iter_protocol_files([root]), [expected])
+
+    def test_rejected_unchanged_protocol_is_not_reparsed_each_poll(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "invalid.docx"
+            path.write_bytes(b"invalid but non-empty")
+            config = SimpleNamespace(
+                agent_id="2",
+                state_file=root / "state.json",
+            )
+            polling = PollingConfig(
+                state=True,
+                interval_min=1,
+                operations_dirs=[root],
+            )
+            state = AgentState()
+
+            with patch(
+                "hospital_agent.polling.protocols.parse_protocol",
+                return_value=None,
+            ) as parser:
+                poll_operation_protocols(config, polling, object(), state)
+                poll_operation_protocols(config, polling, object(), state)
+
+            parser.assert_called_once_with(path, "2")
+
+    def test_duplicate_operation_is_sent_only_once(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            first = root / "first.docx"
+            second = root / "copy.docx"
+            first.write_bytes(b"first")
+            second.write_bytes(b"second")
+            config = SimpleNamespace(
+                agent_id="2",
+                state_file=root / "state.json",
+            )
+            polling = PollingConfig(
+                state=True,
+                interval_min=1,
+                operations_dirs=[root],
+            )
+            state = AgentState()
+            viewer = SimpleNamespace(post_json=MagicMock(return_value=True))
+            payload = {
+                "study_id": "217",
+                "time_beginning": "2026-04-28T04:05:00Z",
+                "patient": "Иванова Н.Г.",
+            }
+
+            with patch(
+                "hospital_agent.polling.protocols.parse_protocol",
+                return_value=payload,
+            ):
+                sent = poll_operation_protocols(
+                    config,
+                    polling,
+                    viewer,
+                    state,
+                )
+
+            self.assertEqual(sent, 1)
+            viewer.post_json.assert_called_once_with("/studies", payload)
+            self.assertEqual(len(state.processed_protocols), 2)
+            self.assertEqual(len(state.processed_protocol_keys), 1)
 
 
 if __name__ == "__main__":

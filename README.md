@@ -86,6 +86,10 @@ pip install -e .
 
 - независимо выполняет heartbeat, user requests, DOCX, CT и XA polling;
 - новые `.docx` протоколы отправляет на фиксированный endpoint `/studies`;
+- пустые DOCX и временные файлы Word `~$...` не обрабатывает, а неизменившийся
+  некорректный протокол не перечитывает при каждом polling;
+- копии одной операции в разных папках дедуплицирует для `/studies`, отчётов и
+  результатов `find_study`;
 - CT/XA polling обрабатывает исследования от момента включения до ближайших 08:00;
 - скачивает DICOM напрямую по StudyInstanceUID, строго проверяет и загружает в Yandex;
 - передает метаданные и трехдневные ссылки на `/ct_studies` или `/xa_studies`;
@@ -220,5 +224,15 @@ python -m compileall hospital_agent hospital_agent.py
 ```powershell
 python -m unittest discover -v
 ```
+
+Проверка реального каталога протоколов теми же парсерами, что использует агент:
+
+```powershell
+python scripts\audit_protocols.py "C:\Users\Angio_hir1\Desktop\Операции 2026"
+```
+
+Команда показывает количество пустых и временных DOCX, ошибки парсинга и
+дубликаты операций. Нулевой exit code означает, что каждый непустой рабочий
+DOCX подходит и для отчёта, и для `/studies`.
 
 Для интеграционной проверки PACS/Yandex/MAPDR нужен доступ к больничной сети, корректные AE-настройки в `config.json`, backend viewer и установленные зависимости из `requirements.txt`.

@@ -14,6 +14,7 @@ class AgentState:
     """Локальное состояние hospital_agent между циклами polling."""
 
     processed_protocols: dict[str, str] = field(default_factory=dict)
+    processed_protocol_keys: list[str] = field(default_factory=list)
     last_user_request_id: str | None = None
     processed_user_request_ids: list[str] = field(default_factory=list)
     pending_user_request_results: dict[str, dict[str, Any]] = field(default_factory=dict)
@@ -58,11 +59,19 @@ def load_state(path: Path) -> AgentState:
         for key, value in raw_pending_results.items()
         if isinstance(value, dict)
     }
+    raw_processed_protocol_keys = raw.get("processed_protocol_keys", [])
+    if not isinstance(raw_processed_protocol_keys, list):
+        raw_processed_protocol_keys = []
 
     return AgentState(
         processed_protocols={
             str(key): str(value) for key, value in raw.get("processed_protocols", {}).items()
         },
+        processed_protocol_keys=[
+            str(value)
+            for value in raw_processed_protocol_keys
+            if value not in (None, "")
+        ],
         last_user_request_id=last_user_request_id,
         processed_user_request_ids=processed_user_request_ids,
         pending_user_request_results=pending_user_request_results,
@@ -88,6 +97,7 @@ def save_state(path: Path, state: AgentState) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "processed_protocols": state.processed_protocols,
+            "processed_protocol_keys": state.processed_protocol_keys,
             "last_user_request_id": state.last_user_request_id,
             "processed_user_request_ids": state.processed_user_request_ids,
             "pending_user_request_results": state.pending_user_request_results,
