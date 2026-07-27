@@ -83,7 +83,14 @@ def run_modality_polling(
         study_datetime = _study_datetime(study)
         if not study_uid or study_uid in processed:
             continue
-        if study_datetime is not None and study_datetime < local_start:
+        if study_datetime is None:
+            LOGGER.warning(
+                "%s study skipped because PACS returned no valid date/time: %s",
+                modality,
+                study_uid,
+            )
+            continue
+        if study_datetime < local_start or study_datetime > local_now:
             continue
         try:
             get_dicom_study(

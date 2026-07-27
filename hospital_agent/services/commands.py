@@ -1,13 +1,20 @@
+import logging
 import re
 import tempfile
+import uuid
+import warnings
 from datetime import datetime, timedelta, timezone
 from typing import Any
+
+from pydicom.uid import UID
 
 from ..config import DICOM_IMPORT_TIMEOUT_SECONDS, AgentConfig, update_polling_state
 from ..http_client import ViewerClient
 from ..state import AgentState, save_state
 from .operation_reports import generate_operations_report
 
+
+LOGGER = logging.getLogger("hospital_agent.services.commands")
 
 GET_REPORT = "get_report"
 FIND_STUDY = "find_study"
@@ -149,12 +156,18 @@ def get_dicom_study(
     study_uid = str(payload.get("study_uid") or "").strip()
     if not study_uid:
         raise ValueError(f"get_{modality.lower()} requires study_uid")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        valid_study_uid = UID(study_uid).is_valid
+    if not valid_study_uid:
+        raise ValueError(f"get_{modality.lower()} requires a valid DICOM study_uid")
 
     pacs_config = load_pacs_config(str(config.pacs_config_path))
     local_config = pacs_config.setdefault("local", {})
     original_output_dir = local_config.get("output_dir")
+    safe_request_id = re.sub(r"[^A-Za-z0-9._-]", "_", request_id)[:80] or "request"
     try:
-        with tempfile.TemporaryDirectory(prefix=f"hospital-agent-{request_id}-") as tmp_dir:
+        with tempfile.TemporaryDirectory(prefix=f"hospital-agent-{safe_request_id}-") as tmp_dir:
             local_config["output_dir"] = tmp_dir
             client = PACSClient(pacs_config)
             download = client.download_study(study_uid, lookup_metadata=False)
@@ -163,19 +176,56 @@ def get_dicom_study(
                     "PACS C-GET incomplete: "
                     f"received={download.get('received_files', 0)} "
                     f"expected={download.get('expected_instances')} "
-                    f"failed={download.get('failed_suboperations', 0)}"
+                    f"failed={download.get('failed_suboperations', 0)} "
+                    f"status={download.get('c_get_status')}"
                 )
+            downloaded_modalities = {
+                str(value).strip().upper()
+                for value in download.get("modalities", [])
+                if str(value).strip()
+            }
+            if modality not in downloaded_modalities:
+                raise RuntimeError(
+                    f"PACS study modality mismatch: requested={modality} "
+                    f"received={','.join(sorted(downloaded_modalities)) or 'unknown'}"
+                )
+            if not str(download.get("patient") or "").strip():
+                raise RuntimeError("PACS study has no patient name")
+            if not re.fullmatch(r"\d{8}", str(download.get("study_date") or "")):
+                raise RuntimeError("PACS study has no valid StudyDate")
 
             storage = YandexStorage()
             storage.check_connection()
+            attempt_folder = f"{download['yandex_folder']}_{uuid.uuid4().hex[:12]}"
+            delete_at = datetime.now(timezone.utc) + timedelta(days=3)
+            _queue_yandex_cleanup(
+                config,
+                state,
+                attempt_folder,
+                delete_at,
+            )
             uploaded = storage.upload_folder(
                 download["study_dir"],
-                download["yandex_folder"],
+                attempt_folder,
                 client.retry_attempts,
                 client.retry_delay,
             )
+            if uploaded.get("yandex_folder") != attempt_folder:
+                raise RuntimeError("Yandex upload returned an unexpected folder")
             if uploaded["failed_files"] or uploaded["uploaded_files"] != download["received_files"]:
-                storage.delete_folder(uploaded["yandex_folder"])
+                try:
+                    storage.delete_folder(uploaded["yandex_folder"])
+                except Exception:
+                    LOGGER.exception(
+                        "Cannot remove incomplete Yandex upload: folder=%s",
+                        uploaded["yandex_folder"],
+                    )
+                else:
+                    _remove_yandex_cleanup(
+                        config,
+                        state,
+                        uploaded["yandex_folder"],
+                    )
                 raise RuntimeError(
                     "Yandex upload incomplete: "
                     f"uploaded={uploaded['uploaded_files']} "
@@ -183,20 +233,6 @@ def get_dicom_study(
                     f"failed={len(uploaded['failed_files'])}"
                 )
 
-            delete_at = datetime.now(timezone.utc) + timedelta(days=3)
-            with state.lock:
-                state.yandex_cleanup = [
-                    item
-                    for item in state.yandex_cleanup
-                    if item.get("folder") != uploaded["yandex_folder"]
-                ]
-                state.yandex_cleanup.append(
-                    {
-                        "folder": uploaded["yandex_folder"],
-                        "delete_at": delete_at.isoformat(),
-                    }
-                )
-                save_state(config.state_file, state)
             study_payload = build_modality_study_payload(modality, download, uploaded)
             if not viewer.post_json(
                 f"/{modality.lower()}_studies",
@@ -204,6 +240,13 @@ def get_dicom_study(
                 timeout_seconds=DICOM_IMPORT_TIMEOUT_SECONDS,
             ):
                 raise RuntimeError(f"backend rejected {modality} study metadata")
+            LOGGER.info(
+                "DICOM study delivered: modality=%s study_uid=%s files=%s bytes=%s",
+                modality,
+                study_uid,
+                uploaded["uploaded_files"],
+                uploaded["uploaded_bytes"],
+            )
     finally:
         if original_output_dir is not None:
             local_config["output_dir"] = original_output_dir
@@ -218,6 +261,39 @@ def get_dicom_study(
         "uploaded_bytes": uploaded["uploaded_bytes"],
         "expires_at": delete_at.isoformat(),
     }
+
+
+def _queue_yandex_cleanup(
+    config: AgentConfig,
+    state: AgentState,
+    folder: str,
+    delete_at: datetime,
+) -> None:
+    """Сохраняет будущую очистку до начала загрузки объектов."""
+    with state.lock:
+        state.yandex_cleanup = [
+            item for item in state.yandex_cleanup if item.get("folder") != folder
+        ]
+        state.yandex_cleanup.append(
+            {
+                "folder": folder,
+                "delete_at": delete_at.isoformat(),
+            }
+        )
+        save_state(config.state_file, state)
+
+
+def _remove_yandex_cleanup(
+    config: AgentConfig,
+    state: AgentState,
+    folder: str,
+) -> None:
+    """Удаляет задачу очистки после успешного удаления неполной загрузки."""
+    with state.lock:
+        state.yandex_cleanup = [
+            item for item in state.yandex_cleanup if item.get("folder") != folder
+        ]
+        save_state(config.state_file, state)
 
 
 def build_modality_study_payload(

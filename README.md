@@ -91,7 +91,10 @@ pip install -e .
 - копии одной операции в разных папках дедуплицирует для `/studies`, отчётов и
   результатов `find_study`;
 - CT/XA polling обрабатывает исследования от момента включения до ближайших 08:00;
-- скачивает DICOM напрямую по StudyInstanceUID, строго проверяет и загружает в Yandex;
+- скачивает DICOM напрямую по StudyInstanceUID, проверяет финальный статус C-GET,
+  полноту, фактическую модальность, пациента и дату, затем загружает в Yandex;
+- принимает вместе с CT/XA распространенные вторичные DICOM-объекты исследования:
+  enhanced images, secondary capture, presentation states, waveforms, SR и PDF;
 - передает метаданные и трехдневные ссылки на `/ct_studies` или `/xa_studies`;
 - создает отчет в `report_time`, сохраняет TXT локально и отправляет JSON на `/reports`;
   обычно отчёт охватывает предыдущее дежурство с 08:00 до 08:00, а по
@@ -180,7 +183,8 @@ pythonw hospital_agent.py
 - `find_xa`, `find_ct` — поиск по фамилии (`patient`) и периоду
   `today`, `yesterday`, `week`, `month` или дате `YYYY-MM-DD`;
 - `get_xa`, `get_ct` — C-GET по `study_uid`, загрузка в Yandex, регистрация
-  в backend и импорт backend → remote PACS;
+  в backend и импорт backend → remote PACS; UID и фактическая модальность
+  исследования проверяются до отправки в облако;
 - `find_study` — поиск стандартизованных протоколов операций по фамилии;
 - `get_report` — отчет за предыдущие 1–4 дежурства с границей 08:00;
 - `ct_polling_on`, `ct_polling_off`, `xa_polling_on`, `xa_polling_off` —

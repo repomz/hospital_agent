@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 from datetime import timedelta
@@ -8,6 +9,8 @@ import boto3
 import pydicom
 from pydicom.errors import InvalidDicomError
 
+
+LOGGER = logging.getLogger("hospital_agent.services.yandex")
 
 class YandexStorage:
     """Минимальный S3-клиент для загрузки DICOM-файлов в Yandex Object Storage."""
@@ -33,7 +36,11 @@ class YandexStorage:
 
     def check_connection(self) -> None:
         """Проверяет доступность Object Storage текущими ключами."""
-        self.client.list_buckets()
+        try:
+            self.client.head_bucket(Bucket=self.bucket)
+        except Exception:
+            LOGGER.exception("Yandex Object Storage bucket is unavailable: %s", self.bucket)
+            raise
 
     def upload_dicom_with_retries(
         self,
@@ -43,7 +50,8 @@ class YandexStorage:
         retry_delay: float,
     ) -> bool:
         """Загружает один DICOM-файл с повторами."""
-        for attempt in range(retry_attempts):
+        last_error: Exception | None = None
+        for attempt in range(max(retry_attempts, 1)):
             try:
                 self.client.upload_file(
                     str(file_path),
@@ -52,9 +60,16 @@ class YandexStorage:
                     ExtraArgs={"ContentType": "application/dicom"},
                 )
                 return True
-            except Exception:
-                if attempt < retry_attempts - 1:
+            except Exception as exc:
+                last_error = exc
+                if attempt < max(retry_attempts, 1) - 1:
                     time.sleep(retry_delay)
+        LOGGER.warning(
+            "Yandex upload failed: object=%s attempts=%s error=%s",
+            object_name,
+            max(retry_attempts, 1),
+            last_error,
+        )
         return False
 
     def upload_folder(

@@ -8,6 +8,16 @@ from hospital_agent.services.yandex import YandexStorage
 
 
 class YandexStorageTests(unittest.TestCase):
+    def test_connection_check_only_requires_access_to_configured_bucket(self):
+        storage = object.__new__(YandexStorage)
+        storage.bucket = "hospital-studies"
+        storage.client = MagicMock()
+
+        storage.check_connection()
+
+        storage.client.head_bucket.assert_called_once_with(Bucket="hospital-studies")
+        storage.client.list_buckets.assert_not_called()
+
     def test_upload_folder_orders_series_and_instances(self):
         with TemporaryDirectory() as directory:
             source = Path(directory)

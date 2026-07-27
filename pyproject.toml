@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "hospital-agent"
 version = "0.1.0"
-description = "Unified hospital workstation agent for PACS, DICOM transfer, Yandex Cloud upload, MAPDR import, and operation reports."
+description = "Hospital workstation agent for PACS, DICOM transfer, Yandex Cloud handoff, and operation reports."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

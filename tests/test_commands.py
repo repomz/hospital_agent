@@ -96,6 +96,7 @@ class CommandTests(unittest.TestCase):
             "study_date": "20260726",
             "study_time": "101500",
             "description": "КТ",
+            "modalities": ["CT"],
             "yandex_folder": "Иванов_26.07.2026_1.2.3",
         }
         upload = {
@@ -114,7 +115,11 @@ class CommandTests(unittest.TestCase):
         pacs_client.retry_attempts = 3
         pacs_client.retry_delay = 0
         storage = MagicMock()
-        storage.upload_folder.return_value = upload
+        storage.upload_folder.side_effect = lambda _source, folder, *_args: {
+            **upload,
+            "yandex_folder": folder,
+            "dicom_link": f"s3://bucket/{folder}",
+        }
         viewer = ViewerStub()
 
         with TemporaryDirectory() as directory:
@@ -144,7 +149,7 @@ class CommandTests(unittest.TestCase):
             lookup_metadata=False,
         )
         self.assertEqual(viewer.posts[0][0], "/ct_studies")
-        self.assertEqual(viewer.posts[0][1]["dicom_link"], upload["dicom_link"])
+        self.assertTrue(viewer.posts[0][1]["dicom_link"].startswith("s3://bucket/"))
         self.assertNotIn("download_dir", result)
         self.assertEqual(len(state.yandex_cleanup), 1)
 
@@ -155,18 +160,26 @@ class CommandTests(unittest.TestCase):
             "study_uid": "1.2.3",
             "study_dir": "download",
             "received_files": 2,
+            "patient": "Иванов^Иван",
+            "study_date": "20260726",
+            "modalities": ["CT"],
             "yandex_folder": "folder",
         }
         pacs_client.retry_attempts = 1
         pacs_client.retry_delay = 0
         storage = MagicMock()
-        storage.upload_folder.return_value = {
+        partial_upload = {
             "yandex_folder": "folder",
             "uploaded_files": 1,
             "uploaded_bytes": 10,
             "failed_files": ["2.dcm"],
             "files": [],
             "dicom_link": "s3://bucket/folder",
+        }
+        storage.upload_folder.side_effect = lambda _source, folder, *_args: {
+            **partial_upload,
+            "yandex_folder": folder,
+            "dicom_link": f"s3://bucket/{folder}",
         }
 
         with TemporaryDirectory() as directory:
@@ -191,7 +204,127 @@ class CommandTests(unittest.TestCase):
                         AgentState(),
                     )
 
-        storage.delete_folder.assert_called_once_with("folder")
+        deleted_folder = storage.delete_folder.call_args.args[0]
+        self.assertTrue(deleted_folder.startswith("folder_"))
+
+    def test_get_ct_rejects_an_xa_study_before_yandex_upload(self):
+        pacs_client = MagicMock()
+        pacs_client.download_study.return_value = {
+            "ok": True,
+            "study_uid": "1.2.3",
+            "study_dir": "download",
+            "received_files": 1,
+            "patient": "Иванов^Иван",
+            "study_date": "20260726",
+            "modalities": ["XA"],
+            "yandex_folder": "folder",
+        }
+        storage = MagicMock()
+
+        with TemporaryDirectory() as directory:
+            config = SimpleNamespace(
+                pacs_config_path=Path(directory) / "missing.json",
+                state_file=Path(directory) / "state.json",
+            )
+            with patch(
+                "hospital_agent.services.pacs.PACSClient",
+                return_value=pacs_client,
+            ), patch(
+                "hospital_agent.services.yandex.YandexStorage",
+                return_value=storage,
+            ), self.assertRaisesRegex(RuntimeError, "modality mismatch"):
+                get_dicom_study(
+                    config,
+                    {"study_uid": "1.2.3"},
+                    "request-id",
+                    "CT",
+                    ViewerStub(),
+                    AgentState(),
+                )
+
+        storage.upload_folder.assert_not_called()
+
+    def test_get_ct_rejects_invalid_study_uid_without_contacting_pacs(self):
+        with TemporaryDirectory() as directory:
+            config = SimpleNamespace(
+                pacs_config_path=Path(directory) / "missing.json",
+                state_file=Path(directory) / "state.json",
+            )
+            with patch("hospital_agent.services.pacs.PACSClient") as pacs_client:
+                with self.assertRaisesRegex(ValueError, "valid DICOM study_uid"):
+                    get_dicom_study(
+                        config,
+                        {"study_uid": "../not-a-uid"},
+                        "request-id",
+                        "CT",
+                        ViewerStub(),
+                        AgentState(),
+                    )
+
+        pacs_client.assert_not_called()
+
+    def test_each_get_attempt_uses_an_isolated_yandex_folder(self):
+        download = {
+            "ok": True,
+            "study_uid": "1.2.3",
+            "study_dir": "download",
+            "received_files": 1,
+            "patient": "Иванов^Иван",
+            "study_date": "20260726",
+            "modalities": ["CT"],
+            "yandex_folder": "Иванов_26.07.2026_1.2.3",
+        }
+        pacs_client = MagicMock()
+        pacs_client.download_study.return_value = download
+        pacs_client.retry_attempts = 1
+        pacs_client.retry_delay = 0
+        storage = MagicMock()
+
+        def upload(_source, folder, *_args):
+            return {
+                "yandex_folder": folder,
+                "uploaded_files": 1,
+                "uploaded_bytes": 10,
+                "failed_files": [],
+                "files": [
+                    {"name": "1.dcm", "size": 10, "url": "https://example/1"},
+                ],
+                "dicom_link": f"s3://bucket/{folder}",
+            }
+
+        storage.upload_folder.side_effect = upload
+        with TemporaryDirectory() as directory:
+            config = SimpleNamespace(
+                pacs_config_path=Path(directory) / "missing.json",
+                state_file=Path(directory) / "state.json",
+            )
+            state = AgentState()
+            with patch(
+                "hospital_agent.services.pacs.PACSClient",
+                return_value=pacs_client,
+            ), patch(
+                "hospital_agent.services.yandex.YandexStorage",
+                return_value=storage,
+            ):
+                first = get_dicom_study(
+                    config,
+                    {"study_uid": "1.2.3"},
+                    "first-request",
+                    "CT",
+                    ViewerStub(),
+                    state,
+                )
+                second = get_dicom_study(
+                    config,
+                    {"study_uid": "1.2.3"},
+                    "second-request",
+                    "CT",
+                    ViewerStub(),
+                    state,
+                )
+
+        self.assertNotEqual(first["dicom_link"], second["dicom_link"])
+        self.assertEqual(len(state.yandex_cleanup), 2)
 
 
 if __name__ == "__main__":

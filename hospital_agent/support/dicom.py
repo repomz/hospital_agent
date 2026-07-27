@@ -85,6 +85,7 @@ def format_yandex_folder(patient_name: object, study_date: object) -> str:
         surname = parts[0].strip() if parts else "Unknown"
     else:
         surname = "Unknown"
+    surname = sanitize_filename(surname).replace(" ", "_") or "Unknown"
 
     date_value = str(study_date or "")
     if date_value and len(date_value) == 8:

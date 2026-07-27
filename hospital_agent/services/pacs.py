@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from pydicom.dataset import Dataset
+from pydicom.multival import MultiValue
 from pynetdicom import AE, ALL_TRANSFER_SYNTAXES, evt
 from pynetdicom.presentation import build_role
 from pynetdicom.sop_class import (
@@ -21,10 +22,37 @@ LOGGER = logging.getLogger("hospital_agent.services.pacs")
 STORAGE_SOPS = [
     str(CTImageStorage),
     "1.2.840.10008.5.1.4.1.1.2.1",
+    "1.2.840.10008.5.1.4.1.1.2.2",
     str(XRayAngiographicImageStorage),
     "1.2.840.10008.5.1.4.1.1.12.1.1",
     "1.2.840.10008.5.1.4.1.1.12.2",
+    "1.2.840.10008.5.1.4.1.1.12.2.1",
     "1.2.840.10008.5.1.4.1.1.7",
+    "1.2.840.10008.5.1.4.1.1.7.1",
+    "1.2.840.10008.5.1.4.1.1.7.2",
+    "1.2.840.10008.5.1.4.1.1.7.3",
+    "1.2.840.10008.5.1.4.1.1.7.4",
+    "1.2.840.10008.5.1.4.1.1.9.1.1",
+    "1.2.840.10008.5.1.4.1.1.9.1.2",
+    "1.2.840.10008.5.1.4.1.1.9.1.3",
+    "1.2.840.10008.5.1.4.1.1.9.1.4",
+    "1.2.840.10008.5.1.4.1.1.11.1",
+    "1.2.840.10008.5.1.4.1.1.11.2",
+    "1.2.840.10008.5.1.4.1.1.11.3",
+    "1.2.840.10008.5.1.4.1.1.11.4",
+    "1.2.840.10008.5.1.4.1.1.11.5",
+    "1.2.840.10008.5.1.4.1.1.66",
+    "1.2.840.10008.5.1.4.1.1.66.1",
+    "1.2.840.10008.5.1.4.1.1.66.3",
+    "1.2.840.10008.5.1.4.1.1.66.4",
+    "1.2.840.10008.5.1.4.1.1.66.5",
+    "1.2.840.10008.5.1.4.1.1.88.11",
+    "1.2.840.10008.5.1.4.1.1.88.22",
+    "1.2.840.10008.5.1.4.1.1.88.33",
+    "1.2.840.10008.5.1.4.1.1.88.34",
+    "1.2.840.10008.5.1.4.1.1.88.59",
+    "1.2.840.10008.5.1.4.1.1.88.67",
+    "1.2.840.10008.5.1.4.1.1.104.1",
 ]
 
 
@@ -74,25 +102,27 @@ class PACSClient:
         if not assoc.is_established:
             return info
 
-        ds = Dataset()
-        ds.QueryRetrieveLevel = "STUDY"
-        ds.StudyInstanceUID = study_uid
-        ds.PatientName = ""
-        ds.StudyDate = ""
-        ds.NumberOfStudyRelatedInstances = ""
+        try:
+            ds = Dataset()
+            ds.QueryRetrieveLevel = "STUDY"
+            ds.StudyInstanceUID = study_uid
+            ds.PatientName = ""
+            ds.StudyDate = ""
+            ds.NumberOfStudyRelatedInstances = ""
 
-        responses = assoc.send_c_find(ds, StudyRootQueryRetrieveInformationModelFind)
-        for status, identifier in responses:
-            if status and status.Status in (0xFF00, 0xFF01) and identifier:
-                info = {
-                    "PatientName": identifier.get("PatientName", ""),
-                    "StudyDate": identifier.get("StudyDate", ""),
-                    "NumberOfStudyRelatedInstances": identifier.get(
-                        "NumberOfStudyRelatedInstances", ""
-                    ),
-                }
-                break
-        assoc.release()
+            responses = assoc.send_c_find(ds, StudyRootQueryRetrieveInformationModelFind)
+            for status, identifier in responses:
+                if status and status.Status in (0xFF00, 0xFF01) and identifier:
+                    info = {
+                        "PatientName": identifier.get("PatientName", ""),
+                        "StudyDate": identifier.get("StudyDate", ""),
+                        "NumberOfStudyRelatedInstances": identifier.get(
+                            "NumberOfStudyRelatedInstances", ""
+                        ),
+                    }
+                    break
+        finally:
+            assoc.release()
         return info
 
     def find_studies(
@@ -105,13 +135,19 @@ class PACSClient:
     ) -> list[dict[str, Any]]:
         """Ищет исследования в PACS по модальности, периоду и пациенту."""
         ae = self._create_ae(include_storage=False)
-        try:
-            LOGGER.info("Connecting to PACS %s:%s", self.pacs_ip, self.pacs_port)
-            assoc = ae.associate(self.pacs_ip, self.pacs_port, ae_title=self.pacs_ae)
-            if not assoc.is_established:
-                LOGGER.error("Cannot connect to PACS")
-                return []
+        LOGGER.info("Connecting to PACS %s:%s", self.pacs_ip, self.pacs_port)
+        assoc = ae.associate(self.pacs_ip, self.pacs_port, ae_title=self.pacs_ae)
+        if not assoc.is_established:
+            LOGGER.error(
+                "Cannot establish PACS association: host=%s port=%s",
+                self.pacs_ip,
+                self.pacs_port,
+            )
+            raise RuntimeError(
+                f"cannot establish PACS association with {self.pacs_ip}:{self.pacs_port}"
+            )
 
+        try:
             ds = Dataset()
             ds.QueryRetrieveLevel = "STUDY"
             ds.StudyInstanceUID = ""
@@ -140,6 +176,15 @@ class PACSClient:
                 if status and status.Status in (0xFF00, 0xFF01) and identifier:
                     uid = identifier.get("StudyInstanceUID", "")
                     if uid:
+                        found_modalities = _modality_values(
+                            identifier.get("ModalitiesInStudy", "")
+                        )
+                        if (
+                            modality
+                            and found_modalities
+                            and modality.upper() not in found_modalities
+                        ):
+                            continue
                         studies.append(
                             {
                                 "number": len(studies) + 1,
@@ -157,11 +202,18 @@ class PACSClient:
                                 "instances": str(identifier.get("NumberOfStudyRelatedInstances", "")),
                             }
                         )
-            assoc.release()
+            LOGGER.info(
+                "PACS search complete: modality=%s patient=%s studies=%s",
+                modality or "any",
+                patient_name or "any",
+                len(studies),
+            )
             return studies
-        except Exception:
-            LOGGER.exception("PACS search error")
-            return []
+        except Exception as exc:
+            LOGGER.error("PACS C-FIND failed: %s", exc)
+            raise RuntimeError(f"PACS C-FIND failed: {exc}") from exc
+        finally:
+            assoc.release()
 
     def download_study(
         self,
@@ -187,8 +239,11 @@ class PACSClient:
         patient_birth_date = ""
         study_description = ""
         study_time = ""
+        modalities: set[str] = set()
+        received_sop_uids: set[str] = set()
         failed_suboperations = 0
         warning_suboperations = 0
+        final_status: int | None = None
         start_time = time.time()
 
         def handle_store(event: Any) -> int:
@@ -199,13 +254,33 @@ class PACSClient:
             if self.retrieval_cancelled:
                 return 0xC000
             dataset = event.dataset
+            dataset_study_uid = str(dataset.get("StudyInstanceUID", ""))
+            if dataset_study_uid and dataset_study_uid != study_uid:
+                LOGGER.warning(
+                    "Rejected DICOM instance from another study: expected=%s received=%s",
+                    study_uid,
+                    dataset_study_uid,
+                )
+                return 0xC000
+            sop_instance_uid = str(dataset.get("SOPInstanceUID", ""))
+            if not sop_instance_uid:
+                LOGGER.warning("Rejected DICOM instance without SOPInstanceUID")
+                return 0xC000
+            if sop_instance_uid in received_sop_uids:
+                LOGGER.warning("Rejected duplicate DICOM instance: %s", sop_instance_uid)
+                return 0xC000
             dataset.file_meta = event.file_meta
-            filename = study_dir / f"{dataset.SOPInstanceUID}.dcm"
-            dataset.save_as(str(filename), enforce_file_format=True)
+            filename = study_dir / f"{sanitize_study_uid(sop_instance_uid)}.dcm"
+            temporary_filename = filename.with_suffix(".dcm.tmp")
+            dataset.save_as(str(temporary_filename), enforce_file_format=True)
+            temporary_filename.replace(filename)
             try:
                 file_size = filename.stat().st_size
             except OSError:
                 file_size = 0
+            if file_size <= 0:
+                LOGGER.warning("Rejected empty DICOM instance: %s", sop_instance_uid)
+                return 0xC000
             if not patient_name:
                 patient_name = str(dataset.get("PatientName", ""))
             if not patient_age:
@@ -218,14 +293,17 @@ class PACSClient:
                 study_time = str(dataset.get("StudyTime", ""))
             if not study_description:
                 study_description = str(dataset.get("StudyDescription", ""))
+            modalities.update(_modality_values(dataset.get("Modality", "")))
             received_bytes += file_size
             received_count += 1
+            received_sop_uids.add(sop_instance_uid)
             return 0x0000
 
         ae = self._create_ae(include_storage=True)
         role_neg = [build_role(uid, scp_role=True) for uid in STORAGE_SOPS]
         handlers = [(evt.EVT_C_STORE, handle_store)]
 
+        assoc = None
         try:
             assoc = ae.associate(
                 self.pacs_ip,
@@ -246,6 +324,7 @@ class PACSClient:
                 StudyRootQueryRetrieveInformationModelGet,
             ):
                 if status:
+                    final_status = int(status.Status)
                     failed_suboperations = int(
                         getattr(status, "NumberOfFailedSuboperations", 0) or 0
                     )
@@ -269,10 +348,16 @@ class PACSClient:
                 if self.retrieval_cancelled:
                     LOGGER.warning("Retrieval cancelled")
                     break
-            assoc.release()
-        except Exception:
+        except Exception as exc:
             LOGGER.exception("PACS retrieval error")
-            return {"ok": False, "study_dir": str(study_dir)}
+            return {
+                "ok": False,
+                "study_dir": str(study_dir),
+                "error": str(exc),
+            }
+        finally:
+            if assoc is not None and assoc.is_established:
+                assoc.release()
 
         duration = time.time() - start_time
         LOGGER.info(
@@ -292,6 +377,7 @@ class PACSClient:
         return {
             "ok": (
                 received_count > 0
+                and final_status == 0x0000
                 and failed_suboperations == 0
                 and warning_suboperations == 0
                 and (expected_instances is None or received_count == expected_instances)
@@ -303,12 +389,16 @@ class PACSClient:
             "expected_instances": expected_instances,
             "failed_suboperations": failed_suboperations,
             "warning_suboperations": warning_suboperations,
+            "c_get_status": (
+                f"0x{final_status:04X}" if final_status is not None else None
+            ),
             "patient": patient_name,
             "age": patient_age,
             "birth_date": patient_birth_date,
             "study_date": study_date,
             "study_time": study_time,
             "description": study_description,
+            "modalities": sorted(modalities),
             "duration": duration,
             "yandex_folder": yandex_folder,
         }
@@ -325,3 +415,16 @@ def _safe_int(value: Any) -> int | None:
 def sanitize_study_uid(study_uid: str) -> str:
     """Возвращает безопасное имя временной папки из StudyInstanceUID."""
     return "".join(char if char.isalnum() or char in ".-_" else "_" for char in study_uid)
+
+
+def _modality_values(value: Any) -> set[str]:
+    """Приводит DICOM CS со списком модальностей к набору кодов."""
+    if isinstance(value, (list, tuple, MultiValue)):
+        raw_values = value
+    else:
+        raw_values = str(value or "").split("\\")
+    return {
+        str(item).strip().upper()
+        for item in raw_values
+        if str(item).strip()
+    }
