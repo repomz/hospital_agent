@@ -38,7 +38,7 @@ class PollingRuntime:
 def request_stop(signum: int, frame: object) -> None:
     """Запрашивает мягкую остановку постоянного агента."""
     global _running
-    LOGGER.info("Stop signal received: %s", signum)
+    LOGGER.info("Shutdown requested: signal=%s", signum)
     _running = False
 
 
@@ -90,9 +90,13 @@ def _collect_runtime(runtime: PollingRuntime) -> None:
     try:
         result = runtime.future.result()
         if result:
-            LOGGER.info("%s finished: result=%s", runtime.name, result)
+            LOGGER.info(
+                "Polling cycle completed: task=%s processed=%s",
+                runtime.name,
+                result,
+            )
     except Exception:
-        LOGGER.exception("%s polling failed", runtime.name)
+        LOGGER.exception("Polling task failed: task=%s", runtime.name)
     runtime.future = None
 
 
@@ -139,7 +143,11 @@ def _run_scheduled_report(
     with state.lock:
         state.last_report_date = today
         save_state(config.state_file, state)
-    LOGGER.info("Duty report sent for %s: period_days=%s", today, period)
+    LOGGER.info(
+        "Duty report sent: duty_end=%s period_days=%s",
+        today,
+        period,
+    )
 
 
 def _scheduled_report_period(now: datetime) -> int:
@@ -160,7 +168,7 @@ def run_agent(config: AgentConfig) -> int:
     next_report_check_at = 0.0
 
     LOGGER.info(
-        "Started: agent_id=%s description=%s viewer_url=%s",
+        "Agent started: agent_id=%s description=%s viewer_url=%s",
         config.agent_id,
         config.description,
         config.viewer_url,
@@ -190,7 +198,7 @@ def run_agent(config: AgentConfig) -> int:
                 next_report_check_at = now_monotonic + 60
             time.sleep(1)
 
-    LOGGER.info("Stopped")
+    LOGGER.info("Agent stopped")
     return 0
 
 

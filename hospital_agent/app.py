@@ -9,7 +9,7 @@ from .runner import run_agent
 
 
 class AgentContextFilter(logging.Filter):
-    """Добавляет в каждую запись короткие имена агента и сервиса."""
+    """Добавляет в запись имя агента и точное место вызова логирования."""
 
     def __init__(self, agent_id: str) -> None:
         super().__init__()
@@ -17,9 +17,13 @@ class AgentContextFilter(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
         record.agent_name = self.agent_name
-        record.service_name = record.name.removeprefix("hospital_agent.").replace(".", "/")
-        if record.service_name == "hospital_agent":
-            record.service_name = "runtime"
+        source_path = Path(record.pathname)
+        try:
+            package_index = source_path.parts.index("hospital_agent")
+            source_name = Path(*source_path.parts[package_index:]).as_posix()
+        except ValueError:
+            source_name = record.filename
+        record.source_location = f"{source_name}:{record.lineno}"
         return True
 
 
@@ -104,7 +108,7 @@ def setup_logging(
         level=logging.INFO,
         format=(
             "%(asctime)s | %(levelname)s | %(agent_name)s | "
-            "%(service_name)s | %(message)s"
+            "%(source_location)s | %(message)s"
         ),
         handlers=handlers,
         force=True,

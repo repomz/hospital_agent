@@ -289,5 +289,9 @@ def poll_operation_protocols(
                 ]
                 save_state(config.state_file, state)
             sent_count += 1
-            LOGGER.info("Sent: %s", path)
+            LOGGER.info(
+                "Protocol sent: endpoint=/studies study_id=%s file=%s",
+                payload["study_id"],
+                path,
+            )
     return sent_count

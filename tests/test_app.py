@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from hospital_agent.app import (
+    AgentContextFilter,
     DailyFileHandler,
     is_pythonw,
     resolve_config_path,
@@ -16,6 +17,25 @@ from hospital_agent.config import load_agent_config
 
 
 class AppStartupTests(unittest.TestCase):
+    def test_log_context_contains_python_file_and_line(self):
+        record = logging.LogRecord(
+            name="hospital_agent.services.commands",
+            level=logging.ERROR,
+            pathname="/project/hospital_agent/services/commands.py",
+            lineno=269,
+            msg="backend rejected report",
+            args=(),
+            exc_info=None,
+        )
+
+        AgentContextFilter("2").filter(record)
+
+        self.assertEqual(record.agent_name, "agent_2")
+        self.assertEqual(
+            record.source_location,
+            "hospital_agent/services/commands.py:269",
+        )
+
     def tearDown(self):
         logging.shutdown()
         for handler in logging.getLogger().handlers[:]:

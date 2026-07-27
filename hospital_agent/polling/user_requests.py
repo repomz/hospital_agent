@@ -176,7 +176,11 @@ def run_user_request(
     )
     if not _finish_terminal_request(config, viewer, state, current_request_id, delivery):
         return False
-    LOGGER.info("User request %s command=%s finished", current_request_id, command)
+    LOGGER.info(
+        "User request completed: id=%s command=%s",
+        current_request_id,
+        command,
+    )
     return True
 
 

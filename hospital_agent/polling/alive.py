@@ -21,5 +21,5 @@ def send_alive(config: AgentConfig, viewer: ViewerClient) -> bool:
     """Отправляет heartbeat агента на viewer /agent_alive."""
     ok = viewer.post_json("/agent_status", build_alive_payload(config))
     if ok:
-        LOGGER.info("Agent alive webhook sent")
+        LOGGER.info("Heartbeat sent: endpoint=/agent_status status=well")
     return ok
