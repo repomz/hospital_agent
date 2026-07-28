@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import unittest
 from datetime import date
 from pathlib import Path
@@ -10,6 +11,7 @@ from hospital_agent.app import (
     AgentContextFilter,
     DailyFileHandler,
     is_pythonw,
+    load_environment,
     resolve_config_path,
     setup_logging,
 )
@@ -17,6 +19,35 @@ from hospital_agent.config import load_agent_config
 
 
 class AppStartupTests(unittest.TestCase):
+    def test_standard_dotenv_is_loaded_without_overriding_process_values(self):
+        with TemporaryDirectory() as tmp_dir, patch.dict(
+            os.environ,
+            {"YANDEX_BUCKET": "from-process"},
+            clear=True,
+        ):
+            base_dir = Path(tmp_dir)
+            (base_dir / ".env").write_text(
+                "\n".join(
+                    (
+                        "YANDEX_BUCKET=from-file",
+                        "YANDEX_ENDPOINT=https://storage.example",
+                        "YANDEX_ACCESS_KEY_ID=access-id",
+                        "YANDEX_SECRET_ACCESS_KEY=secret",
+                    )
+                ),
+                encoding="utf-8",
+            )
+            (base_dir / "env.txt").write_text(
+                "YANDEX_ENDPOINT=https://ignored.example",
+                encoding="utf-8",
+            )
+
+            self.assertTrue(load_environment(base_dir))
+            self.assertEqual(os.environ["YANDEX_BUCKET"], "from-process")
+            self.assertEqual(os.environ["YANDEX_ENDPOINT"], "https://storage.example")
+            self.assertEqual(os.environ["YANDEX_ACCESS_KEY_ID"], "access-id")
+            self.assertEqual(os.environ["YANDEX_SECRET_ACCESS_KEY"], "secret")
+
     def test_log_context_contains_python_file_and_line(self):
         record = logging.LogRecord(
             name="hospital_agent.services.commands",
@@ -56,6 +87,8 @@ class AppStartupTests(unittest.TestCase):
             self.assertEqual(len(logging.getLogger().handlers), 1)
             self.assertIsInstance(logging.getLogger().handlers[0], logging.StreamHandler)
             self.assertNotIsInstance(logging.getLogger().handlers[0], DailyFileHandler)
+            self.assertEqual(logging.getLogger("pynetdicom").level, logging.WARNING)
+            self.assertEqual(logging.getLogger("pydicom").level, logging.WARNING)
 
     def test_background_logging_switches_file_after_midnight(self):
         with TemporaryDirectory() as tmp_dir:

@@ -162,6 +162,8 @@ def get_dicom_study(
     if not valid_study_uid:
         raise ValueError(f"get_{modality.lower()} requires a valid DICOM study_uid")
 
+    storage = YandexStorage()
+    storage.check_connection()
     pacs_config = load_pacs_config(str(config.pacs_config_path))
     local_config = pacs_config.setdefault("local", {})
     original_output_dir = local_config.get("output_dir")
@@ -194,8 +196,6 @@ def get_dicom_study(
             if not re.fullmatch(r"\d{8}", str(download.get("study_date") or "")):
                 raise RuntimeError("PACS study has no valid StudyDate")
 
-            storage = YandexStorage()
-            storage.check_connection()
             attempt_folder = f"{download['yandex_folder']}_{uuid.uuid4().hex[:12]}"
             delete_at = datetime.now(timezone.utc) + timedelta(days=3)
             _queue_yandex_cleanup(

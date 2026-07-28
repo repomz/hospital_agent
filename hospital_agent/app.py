@@ -4,6 +4,8 @@ from datetime import date
 from pathlib import Path, PureWindowsPath
 from typing import Callable
 
+from dotenv import load_dotenv
+
 from .config import DEFAULT_CONFIG_PATH, load_agent_config
 from .runner import run_agent
 
@@ -87,6 +89,11 @@ def resolve_config_path() -> Path:
     return Path(__file__).resolve().parent.parent / DEFAULT_CONFIG_PATH
 
 
+def load_environment(base_dir: Path) -> bool:
+    """Загружает стандартный .env рядом с agent_config.json."""
+    return load_dotenv(dotenv_path=base_dir / ".env", override=False)
+
+
 def setup_logging(
     log_dir: Path,
     background: bool | None = None,
@@ -113,6 +120,10 @@ def setup_logging(
         handlers=handlers,
         force=True,
     )
+    # pynetdicom на INFO печатает каждый DICOM dataset и каждый C-STORE instance.
+    # Агент логирует итог целого исследования самостоятельно.
+    logging.getLogger("pynetdicom").setLevel(logging.WARNING)
+    logging.getLogger("pydicom").setLevel(logging.WARNING)
 
 
 def main() -> None:
@@ -120,6 +131,7 @@ def main() -> None:
     background = is_pythonw()
     config_path = resolve_config_path()
     try:
+        load_environment(config_path.parent)
         config = load_agent_config(config_path)
     except Exception:
         setup_logging(config_path.parent / "logs" / "agent", background)

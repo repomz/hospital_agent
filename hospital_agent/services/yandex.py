@@ -12,6 +12,15 @@ from pydicom.errors import InvalidDicomError
 
 LOGGER = logging.getLogger("hospital_agent.services.yandex")
 
+
+YANDEX_ENVIRONMENT_KEYS = {
+    "bucket": "YANDEX_BUCKET",
+    "endpoint": "YANDEX_ENDPOINT",
+    "access_key": "YANDEX_ACCESS_KEY_ID",
+    "secret_key": "YANDEX_SECRET_ACCESS_KEY",
+}
+
+
 class YandexStorage:
     """Минимальный S3-клиент для загрузки DICOM-файлов в Yandex Object Storage."""
 
@@ -27,6 +36,19 @@ class YandexStorage:
         self.endpoint = endpoint or os.getenv("YANDEX_ENDPOINT")
         self.access_key = access_key or os.getenv("YANDEX_ACCESS_KEY_ID")
         self.secret_key = secret_key or os.getenv("YANDEX_SECRET_ACCESS_KEY")
+        missing = [
+            environment_key
+            for attribute, environment_key in YANDEX_ENVIRONMENT_KEYS.items()
+            if not str(getattr(self, attribute) or "").strip()
+        ]
+        if missing:
+            message = (
+                "Yandex Object Storage configuration is incomplete: missing "
+                + ", ".join(missing)
+                + "; configure .env or the process environment"
+            )
+            LOGGER.error(message)
+            raise RuntimeError(message)
         self.client = boto3.session.Session().client(
             service_name="s3",
             endpoint_url=self.endpoint,
@@ -38,9 +60,15 @@ class YandexStorage:
         """Проверяет доступность Object Storage текущими ключами."""
         try:
             self.client.head_bucket(Bucket=self.bucket)
-        except Exception:
-            LOGGER.exception("Yandex Object Storage bucket is unavailable: %s", self.bucket)
-            raise
+        except Exception as exc:
+            LOGGER.error(
+                "Yandex Object Storage bucket is unavailable: bucket=%s error=%s",
+                self.bucket,
+                exc,
+            )
+            raise RuntimeError(
+                f"Yandex Object Storage bucket {self.bucket!r} is unavailable"
+            ) from exc
 
     def upload_dicom_with_retries(
         self,

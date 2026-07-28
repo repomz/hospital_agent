@@ -263,6 +263,31 @@ class CommandTests(unittest.TestCase):
 
         pacs_client.assert_not_called()
 
+    def test_yandex_is_checked_before_large_pacs_download(self):
+        storage = MagicMock()
+        storage.check_connection.side_effect = RuntimeError("bucket unavailable")
+        with TemporaryDirectory() as directory:
+            config = SimpleNamespace(
+                pacs_config_path=Path(directory) / "missing.json",
+                state_file=Path(directory) / "state.json",
+            )
+            with patch(
+                "hospital_agent.services.yandex.YandexStorage",
+                return_value=storage,
+            ), patch("hospital_agent.services.pacs.PACSClient") as pacs_client:
+                with self.assertRaisesRegex(RuntimeError, "bucket unavailable"):
+                    get_dicom_study(
+                        config,
+                        {"study_uid": "1.2.3"},
+                        "request-id",
+                        "CT",
+                        ViewerStub(),
+                        AgentState(),
+                    )
+
+        storage.check_connection.assert_called_once()
+        pacs_client.assert_not_called()
+
     def test_each_get_attempt_uses_an_isolated_yandex_folder(self):
         download = {
             "ok": True,

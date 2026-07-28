@@ -14,3 +14,5 @@ downloaded_studies/
 *.log
 *.tmp
 .env
+env.txt
+agent_logs.txt

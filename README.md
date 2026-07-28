@@ -61,7 +61,12 @@ pip install -e .
 }
 ```
 
-Для отправки в Yandex Cloud используются переменные окружения `YANDEX_ACCESS_KEY_ID`, `YANDEX_SECRET_ACCESS_KEY`, `YANDEX_BUCKET`, `YANDEX_ENDPOINT`.
+Для отправки в Yandex Cloud используются `YANDEX_ACCESS_KEY_ID`,
+`YANDEX_SECRET_ACCESS_KEY`, `YANDEX_BUCKET`, `YANDEX_ENDPOINT`. Агент загружает
+их из стандартного файла `.env` рядом с `agent_config.json`. Уже заданные
+системные переменные окружения имеют приоритет и не перезаписываются. `env.txt`
+не используется. Перед скачиванием крупного исследования агент проверяет
+полноту конфигурации и доступность указанного бакета.
 
 ## Приложение hospital_agent
 
