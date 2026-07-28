@@ -13,12 +13,27 @@ from hospital_agent.app import (
     is_pythonw,
     load_environment,
     resolve_config_path,
+    run_agent_resilient,
     setup_logging,
 )
 from hospital_agent.config import load_agent_config
 
 
 class AppStartupTests(unittest.TestCase):
+    def test_runtime_is_restarted_after_unexpected_error(self):
+        config = object()
+        with patch(
+            "hospital_agent.app.run_agent",
+            side_effect=(RuntimeError("temporary crash"), 0),
+        ) as run, patch("hospital_agent.app.time.sleep") as sleep, patch(
+            "hospital_agent.app.logging.getLogger"
+        ):
+            result = run_agent_resilient(config, restart_delay=10)
+
+        self.assertEqual(result, 0)
+        self.assertEqual(run.call_count, 2)
+        sleep.assert_called_once_with(10)
+
     def test_standard_dotenv_is_loaded_without_overriding_process_values(self):
         with TemporaryDirectory() as tmp_dir, patch.dict(
             os.environ,

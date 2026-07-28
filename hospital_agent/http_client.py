@@ -1,7 +1,7 @@
 import json
 import logging
+from http.client import HTTPException
 from typing import Any
-from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
@@ -40,7 +40,7 @@ class ViewerClient:
                 if not ok:
                     LOGGER.warning("POST %s returned HTTP %s", url, response.status)
                 return ok
-        except (HTTPError, URLError, TimeoutError) as exc:
+        except (OSError, HTTPException) as exc:
             LOGGER.warning("POST %s failed: %s", url, exc)
             return False
 
@@ -54,7 +54,7 @@ class ViewerClient:
                     LOGGER.warning("GET %s returned HTTP %s", url, response.status)
                     return None
                 raw = response.read()
-        except (HTTPError, URLError, TimeoutError) as exc:
+        except (OSError, HTTPException) as exc:
             LOGGER.warning("GET %s failed: %s", url, exc)
             return None
 

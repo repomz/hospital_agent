@@ -1,5 +1,6 @@
 import logging
 import sys
+import time
 from datetime import date
 from pathlib import Path, PureWindowsPath
 from typing import Callable
@@ -8,6 +9,22 @@ from dotenv import load_dotenv
 
 from .config import DEFAULT_CONFIG_PATH, load_agent_config
 from .runner import run_agent
+
+
+RUNTIME_RESTART_DELAY_SECONDS = 10
+
+
+def run_agent_resilient(config: object, restart_delay: float = RUNTIME_RESTART_DELAY_SECONDS) -> int:
+    """Перезапускает runtime после неожиданной внутренней ошибки."""
+    while True:
+        try:
+            return run_agent(config)
+        except Exception:
+            logging.getLogger("hospital_agent.startup").exception(
+                "Agent runtime crashed; restarting in %s seconds",
+                restart_delay,
+            )
+            time.sleep(restart_delay)
 
 
 class AgentContextFilter(logging.Filter):
@@ -146,4 +163,4 @@ def main() -> None:
         "Logging mode=%s",
         "daily_file" if background else "terminal",
     )
-    raise SystemExit(run_agent(config))
+    raise SystemExit(run_agent_resilient(config))
