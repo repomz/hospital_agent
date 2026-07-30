@@ -941,6 +941,7 @@ def build_operations_report_payload(
     period_operations,
     all_operations,
     planned_patients_for_period,
+    planned_details_for_period,
     planned_details_today,
 ):
     """Собирает JSON-отчет по операциям и сегодняшнему плану."""
@@ -950,6 +951,39 @@ def build_operations_report_payload(
     )
     planned_ops = sort_operations_by_category(planned_ops)
     emergency_ops = sort_operations_by_category(emergency_ops)
+
+    period_planned_operations = []
+    for plan_item in planned_details_for_period:
+        if not isinstance(plan_item, dict):
+            patient, department, operation = plan_item
+            plan_item = {
+                "patient": patient,
+                "birth_date": "",
+                "department": department,
+                "operation": operation,
+            }
+        performed = next(
+            (
+                operation
+                for operation in planned_ops
+                if same_patient(plan_item, operation)
+            ),
+            None,
+        )
+        if performed:
+            period_planned_operations.append(operation_summary(performed))
+            continue
+        period_planned_operations.append(
+            {
+                "patient": plan_item.get("patient", ""),
+                "age": "",
+                "department": plan_item.get("department", ""),
+                "operation": plan_item.get("operation", ""),
+                "time_beginning": "",
+                "time_duration": "",
+                "surgeon": "",
+            }
+        )
 
     today_planned_operations = []
     today_start = datetime.combine(end_period.date(), datetime.min.time())
@@ -969,10 +1003,20 @@ def build_operations_report_payload(
             if operation["datetime"] < today_start and same_patient(plan_item, operation)
         ]
         previous_operations.sort(key=lambda item: parse_date_value(item["date"]), reverse=True)
+        age = ""
+        birth_date = str(plan_item.get("birth_date") or "")
+        if birth_date:
+            try:
+                born = datetime.strptime(birth_date, "%d.%m.%Y")
+                age = end_period.year - born.year - (
+                    (end_period.month, end_period.day) < (born.month, born.day)
+                )
+            except ValueError:
+                pass
         today_planned_operations.append(
             {
                 "patient": plan_item.get("patient", ""),
-                "age": "",
+                "age": age,
                 "department": plan_item.get("department", ""),
                 "operation": plan_item.get("operation", ""),
                 "previous_operations": previous_operations,
@@ -984,10 +1028,10 @@ def build_operations_report_payload(
         "period_days": int(period),
         "period_start": start_period.strftime("%d.%m.%Y %H:%M"),
         "period_end": end_period.strftime("%d.%m.%Y %H:%M"),
-        "planned_count": len(planned_ops),
+        "planned_count": len(period_planned_operations),
         "emergency_total": len(emergency_ops),
         "today_planned_count": len(today_planned_operations),
-        "planned_operations": [operation_summary(operation) for operation in planned_ops],
+        "planned_operations": period_planned_operations,
         "emergency_operations": [operation_summary(operation) for operation in emergency_ops],
         "today_planned_operations": today_planned_operations,
     }
@@ -1129,7 +1173,7 @@ def generate_operations_report(
     """Сканирует DOCX, сохраняет TXT и возвращает JSON-данные для backend."""
     end_period = end_period or datetime.now()
     start_period = end_period - timedelta(days=period)
-    planned_patients, _ = get_plan_data(plan_dir, start_period)
+    planned_patients, planned_details_for_period = get_plan_data(plan_dir, start_period)
     _, planned_details_today = get_plan_data(plan_dir, end_period)
 
     all_operations = []
@@ -1163,6 +1207,7 @@ def generate_operations_report(
         period_operations,
         all_operations,
         planned_patients,
+        planned_details_for_period,
         planned_details_today,
     )
 

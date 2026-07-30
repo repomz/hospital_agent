@@ -46,7 +46,7 @@ class ProtocolMappingTests(unittest.TestCase):
             "имплантация двухкамерного экс apollo dr",
         )
 
-    def test_protocol_payload_contains_compact_name_and_description(self):
+    def test_protocol_payload_contains_full_name_and_description(self):
         content = (
             "Операция: 125 Коронарография. Локальная эндоваскулярная "
             "трансартериальная тромбоаспирация из I ветки тупого края.\n"
@@ -67,10 +67,17 @@ class ProtocolMappingTests(unittest.TestCase):
             payload = parse_protocol(Path("protocol.docx"), "1")
 
         self.assertIsNotNone(payload)
-        self.assertEqual(payload["name_operation"], "КАГ. ТА I ВТК.")
+        self.assertEqual(
+            payload["name_operation"],
+            "Коронарография. Локальная эндоваскулярная "
+            "трансартериальная тромбоаспирация из I ветки тупого края",
+        )
         self.assertEqual(
             payload["descr_operation"],
-            "Доступ: правой лучевой артерии, 6F. выполнена ТА из I ВТК.",
+            "Под МИА 0,5% новокаина, в положении на спине выполнена пункция "
+            "правой лучевой артерии по «Сельдингеру» с установкой интродьюсера "
+            "6F. В ходе исследования выявлено: выполнена тромбоаспирация из I "
+            "ветки тупого края.",
         )
 
     def test_protocol_accepts_new_operation_type_and_surgeon(self):

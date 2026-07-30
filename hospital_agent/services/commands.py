@@ -1,4 +1,5 @@
 import logging
+import hashlib
 import re
 import tempfile
 import uuid
@@ -17,11 +18,15 @@ from .operation_reports import generate_operations_report
 LOGGER = logging.getLogger("hospital_agent.services.commands")
 
 GET_REPORT = "get_report"
+GET_PLAN = "get_plan"
 FIND_STUDY = "find_study"
+IMPORT_STUDY = "import_study"
 FIND_XA = "find_xa"
 FIND_CT = "find_ct"
 GET_XA = "get_xa"
 GET_CT = "get_ct"
+SEND_XA_TO_PACS = "send_xa_to_pacs"
+SEND_CT_TO_PACS = "send_ct_to_pacs"
 XA_POLLING_ON = "xa_polling_on"
 XA_POLLING_OFF = "xa_polling_off"
 CT_POLLING_ON = "ct_polling_on"
@@ -39,23 +44,30 @@ def execute_user_command(
     """Выполняет команду backend по каноническому полю command."""
     if command in {FIND_XA, FIND_CT}:
         return find_dicom_studies(config, payload, modality=command.removeprefix("find_").upper())
-    if command in {GET_XA, GET_CT}:
+    if command in {GET_XA, GET_CT, SEND_XA_TO_PACS, SEND_CT_TO_PACS}:
         if viewer is None or state is None:
             raise RuntimeError(f"{command} requires viewer and state")
+        modality = "CT" if "ct" in command else "XA"
         return get_dicom_study(
             config,
             payload,
             request_id,
-            command.removeprefix("get_").upper(),
+            modality,
             viewer,
             state,
         )
     if command == FIND_STUDY:
         return find_operation_protocols(config, payload)
+    if command == IMPORT_STUDY:
+        if viewer is None:
+            raise RuntimeError("import_study requires viewer")
+        return import_operation_protocol(config, payload, viewer)
     if command == GET_REPORT:
         if viewer is None:
             raise RuntimeError("get_report requires viewer")
         return generate_report_from_payload(config, payload, viewer)
+    if command == GET_PLAN:
+        return get_operation_plan(config, payload)
     if command in {XA_POLLING_ON, XA_POLLING_OFF, CT_POLLING_ON, CT_POLLING_OFF}:
         if state is None:
             raise RuntimeError(f"{command} requires state")
@@ -136,8 +148,85 @@ def find_operation_protocols(
         if identity in seen_protocols:
             continue
         seen_protocols.add(identity)
-        protocols.append(parsed)
+        protocols.append(
+            {
+                **parsed,
+                "protocol_ref": _protocol_ref(path),
+            }
+        )
     return {"patient": patient, "protocols": protocols}
+
+
+def _protocol_ref(path) -> str:
+    """Возвращает непрозрачный стабильный идентификатор локального файла."""
+    return hashlib.sha256(str(path.resolve()).encode("utf-8")).hexdigest()
+
+
+def import_operation_protocol(
+    config: AgentConfig,
+    payload: dict[str, Any],
+    viewer: ViewerClient,
+) -> dict[str, Any]:
+    """Загружает в backend только явно выбранный пользователем протокол."""
+    from ..polling.protocols import iter_protocol_files, parse_protocol
+
+    protocol_ref = str(payload.get("protocol_ref") or "").strip()
+    if not protocol_ref:
+        raise ValueError("import_study requires protocol_ref")
+    for path in iter_protocol_files(config.study_polling.operations_dirs or []):
+        if _protocol_ref(path) != protocol_ref:
+            continue
+        protocol = parse_protocol(path, config.agent_id)
+        if protocol is None:
+            raise RuntimeError("selected operation protocol cannot be parsed")
+        if not viewer.post_json("/studies", protocol):
+            raise RuntimeError("backend rejected selected operation protocol")
+        return {"study": protocol, "imported": True}
+    raise FileNotFoundError("selected operation protocol no longer exists")
+
+
+def get_operation_plan(
+    config: AgentConfig,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    """Возвращает план на рабочую неделю и выбранный день из недельного DOCX."""
+    from .operation_reports import get_plan_data
+
+    raw_date = str(payload.get("date") or "").strip()
+    selected = datetime.strptime(raw_date, "%Y-%m-%d") if raw_date else datetime.now()
+    monday = selected - timedelta(days=selected.weekday())
+    days = []
+    for offset in range(5):
+        current = monday + timedelta(days=offset)
+        _, operations = get_plan_data(str(config.plan_dir), current)
+        normalized = []
+        for operation in operations:
+            item = dict(operation)
+            birth_date = str(item.get("birth_date") or "")
+            age = None
+            if birth_date:
+                try:
+                    born = datetime.strptime(birth_date, "%d.%m.%Y")
+                    age = current.year - born.year - (
+                        (current.month, current.day) < (born.month, born.day)
+                    )
+                except ValueError:
+                    pass
+            item["age"] = age
+            normalized.append(item)
+        days.append(
+            {
+                "date": current.strftime("%Y-%m-%d"),
+                "weekday": current.strftime("%A"),
+                "operations": normalized,
+            }
+        )
+    return {
+        "week_start": monday.strftime("%Y-%m-%d"),
+        "week_end": (monday + timedelta(days=4)).strftime("%Y-%m-%d"),
+        "selected_date": selected.strftime("%Y-%m-%d"),
+        "days": days,
+    }
 
 
 def get_dicom_study(
@@ -234,8 +323,13 @@ def get_dicom_study(
                 )
 
             study_payload = build_modality_study_payload(modality, download, uploaded)
+            # Every successful PACS download completes the full delivery
+            # chain: Yandex storage -> backend -> remote PACS. The query also
+            # re-imports an already registered study instead of returning it
+            # before PACS delivery.
+            endpoint = f"/{modality.lower()}_studies?force_pacs=true"
             if not viewer.post_json(
-                f"/{modality.lower()}_studies",
+                endpoint,
                 study_payload,
                 timeout_seconds=DICOM_IMPORT_TIMEOUT_SECONDS,
             ):
@@ -260,6 +354,7 @@ def get_dicom_study(
         "uploaded_files": uploaded["uploaded_files"],
         "uploaded_bytes": uploaded["uploaded_bytes"],
         "expires_at": delete_at.isoformat(),
+        "remote_pacs": "sent",
     }
 
 

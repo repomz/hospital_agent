@@ -40,33 +40,36 @@ def run_modality_polling(
     viewer: ViewerClient,
     state: AgentState,
 ) -> int:
-    """Передает новые CT/XA от включения polling до окончания дежурства в 08:00."""
+    """Передает CT за дежурство, а XA — автоматически за текущую неделю."""
     if not polling.state:
         return 0
     modality = modality.upper()
-    enabled_raw = state.polling_enabled_at.get(modality)
-    if enabled_raw:
-        enabled_at = datetime.fromisoformat(enabled_raw)
-    else:
-        enabled_at = datetime.now(timezone.utc)
-        with state.lock:
-            state.polling_enabled_at[modality] = enabled_at.isoformat()
-            save_state(config.state_file, state)
-
     now = datetime.now(timezone.utc)
-    if now.astimezone() >= _duty_end(enabled_at):
-        update_polling_state(config, modality.lower(), False)
-        with state.lock:
-            state.polling_enabled_at.pop(modality, None)
-            save_state(config.state_file, state)
-        LOGGER.info("%s polling automatically disabled at duty end", modality)
-        return 0
+    local_now = now.astimezone()
+    if modality == "XA":
+        local_start = local_now - timedelta(days=local_now.weekday())
+        local_start = local_start.replace(hour=0, minute=0, second=0, microsecond=0)
+    else:
+        enabled_raw = state.polling_enabled_at.get(modality)
+        if enabled_raw:
+            enabled_at = datetime.fromisoformat(enabled_raw)
+        else:
+            enabled_at = now
+            with state.lock:
+                state.polling_enabled_at[modality] = enabled_at.isoformat()
+                save_state(config.state_file, state)
+        if local_now >= _duty_end(enabled_at):
+            update_polling_state(config, modality.lower(), False)
+            with state.lock:
+                state.polling_enabled_at.pop(modality, None)
+                save_state(config.state_file, state)
+            LOGGER.info("%s polling automatically disabled at duty end", modality)
+            return 0
+        local_start = enabled_at.astimezone()
 
     from ..services.pacs import PACSClient
     from ..support.dicom import load_pacs_config
 
-    local_start = enabled_at.astimezone()
-    local_now = now.astimezone()
     date_range = (
         local_start.strftime("%Y%m%d")
         if local_start.date() == local_now.date()
@@ -115,10 +118,10 @@ def run_modality_polling(
 
 
 def disable_expired_polling(config: AgentConfig, state: AgentState) -> int:
-    """Выключает CT/XA polling сразу после наступления 08:00."""
+    """Выключает дежурный CT polling; недельный XA работает постоянно."""
     disabled = 0
     now = datetime.now(timezone.utc)
-    for modality in ("CT", "XA"):
+    for modality in ("CT",):
         polling = getattr(config, f"{modality.lower()}_polling")
         enabled_raw = state.polling_enabled_at.get(modality)
         if not polling.state or not enabled_raw:

@@ -10,6 +10,8 @@ from hospital_agent.config import load_agent_config
 from hospital_agent.services.commands import (
     _last_completed_duty_end,
     execute_user_command,
+    find_operation_protocols,
+    import_operation_protocol,
     get_dicom_study,
 )
 from hospital_agent.state import AgentState
@@ -26,6 +28,38 @@ class ViewerStub:
 
 
 class CommandTests(unittest.TestCase):
+    def test_find_then_import_selected_protocol(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "protocol.docx"
+            path.write_bytes(b"docx")
+            protocol = {
+                "study_id": "77",
+                "patient": "Иванов И.И.",
+                "name_operation": "Коронарография",
+            }
+            config = SimpleNamespace(
+                agent_id="2",
+                study_polling=SimpleNamespace(operations_dirs=[Path(directory)]),
+            )
+            viewer = ViewerStub()
+            with patch(
+                "hospital_agent.polling.protocols.iter_protocol_files",
+                return_value=[path],
+            ), patch(
+                "hospital_agent.polling.protocols.parse_protocol",
+                return_value=protocol,
+            ):
+                found = find_operation_protocols(config, {"patient": "Иванов"})
+                selected = found["protocols"][0]
+                result = import_operation_protocol(
+                    config,
+                    {"protocol_ref": selected["protocol_ref"]},
+                    viewer,
+                )
+
+            self.assertTrue(result["imported"])
+            self.assertEqual(viewer.posts, [("/studies", protocol)])
+
     def test_report_uses_last_completed_0800_boundary(self):
         before_boundary = datetime(2026, 7, 27, 7, 59, 59)
         after_boundary = datetime(2026, 7, 27, 11, 14)
@@ -148,7 +182,7 @@ class CommandTests(unittest.TestCase):
             "1.2.3",
             lookup_metadata=False,
         )
-        self.assertEqual(viewer.posts[0][0], "/ct_studies")
+        self.assertEqual(viewer.posts[0][0], "/ct_studies?force_pacs=true")
         self.assertTrue(viewer.posts[0][1]["dicom_link"].startswith("s3://bucket/"))
         self.assertNotIn("download_dir", result)
         self.assertEqual(len(state.yandex_cleanup), 1)

@@ -13,7 +13,6 @@ from ..services.operation_reports import (
     parse_patient_from_content,
     read_docx_text,
     is_operation_docx_candidate,
-    shorten_operation_description,
 )
 
 from ..config import AgentConfig, PollingConfig
@@ -85,6 +84,17 @@ def parse_study_id(content: str) -> str | None:
         flags=re.IGNORECASE,
     )
     return match.group(1) if match else None
+
+
+def parse_full_operation_name(content: str) -> str | None:
+    """Извлекает несокращённое название из строки «Операция»."""
+    match = re.search(
+        r"О[ \t]*п[ \t]*е[ \t]*р[ \t]*а[ \t]*ц[ \t]*и[ \t]*я\s*:\s*"
+        r"\d+\s*([^\n\r]+)",
+        content,
+        flags=re.IGNORECASE,
+    )
+    return _normalize_text(match.group(1)).strip(" .") if match else None
 
 
 def parse_medical_record_number(content: str) -> str | None:
@@ -211,6 +221,7 @@ def parse_protocol(path: Path, agent_id: str) -> dict[str, Any] | None:
     operation_datetime = parse_operation_datetime_flexible(content)
     patient, age = parse_patient_from_content(content)
     operation = parse_operation_from_content(content)
+    full_operation = parse_full_operation_name(content) or operation
     study_id = parse_study_id(content)
     required_fields = {
         "operation_datetime": operation_datetime,
@@ -238,9 +249,9 @@ def parse_protocol(path: Path, agent_id: str) -> dict[str, Any] | None:
         "patient": patient,
         "age": int(age) if str(age).isdigit() else 0,
         "department": department_from_record_number(record_number) or "не указано",
-        "name_operation": operation,
+        "name_operation": full_operation,
         "study_type": study_type,
-        "descr_operation": shorten_operation_description(description) or operation,
+        "descr_operation": _normalize_text(description) or operation,
         "time_beginning": _rfc3339(operation_datetime),
         "time_duration": parse_operation_duration_min(content),
         "surgeon": surgeon,

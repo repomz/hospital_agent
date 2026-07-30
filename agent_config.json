@@ -19,7 +19,7 @@
     "interval_min": 10
   },
   "xa_polling": {
-    "state": false,
+    "state": true,
     "interval_min": 10
   },
   "study_polling": {
