@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import time
 from pathlib import Path
@@ -270,10 +271,29 @@ class PACSClient:
                 LOGGER.warning("Rejected duplicate DICOM instance: %s", sop_instance_uid)
                 return 0xC000
             dataset.file_meta = event.file_meta
-            filename = study_dir / f"{sanitize_study_uid(sop_instance_uid)}.dcm"
+            # DICOM UIDs may be up to 64 characters.  Keeping both the study UID
+            # in the directory and the SOP Instance UID in the filename can
+            # exceed the legacy 260-character Windows path limit.  The UID is
+            # still stored inside the DICOM file; a stable digest is sufficient
+            # for a collision-resistant local filename.
+            instance_name = hashlib.sha256(sop_instance_uid.encode("ascii")).hexdigest()[:32]
+            filename = study_dir / f"{instance_name}.dcm"
             temporary_filename = filename.with_suffix(".dcm.tmp")
-            dataset.save_as(str(temporary_filename), enforce_file_format=True)
-            temporary_filename.replace(filename)
+            try:
+                dataset.save_as(str(temporary_filename), enforce_file_format=True)
+                temporary_filename.replace(filename)
+            except Exception as exc:
+                try:
+                    temporary_filename.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                LOGGER.error(
+                    "Cannot save DICOM instance: sop_uid=%s path=%s error=%s",
+                    sop_instance_uid,
+                    filename,
+                    exc,
+                )
+                return 0xC000
             try:
                 file_size = filename.stat().st_size
             except OSError:

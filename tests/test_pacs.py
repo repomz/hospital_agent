@@ -117,6 +117,9 @@ class PACSClientTests(unittest.TestCase):
                     len(list(Path(download["study_dir"]).glob("*.dcm"))),
                     1,
                 )
+                stored_file = next(Path(download["study_dir"]).glob("*.dcm"))
+                self.assertEqual(len(stored_file.name), 36)
+                self.assertNotIn(sop_uid, stored_file.name)
         finally:
             server.shutdown()
             server.server_close()
@@ -211,6 +214,49 @@ class PACSClientTests(unittest.TestCase):
                 len(list(Path(result["study_dir"]).glob("*.dcm"))),
                 1,
             )
+
+    def test_store_write_error_is_reported_to_pacs_without_escaping_handler(self):
+        dataset = Dataset()
+        dataset.SOPClassUID = CTImageStorage
+        dataset.SOPInstanceUID = "1.2.3.4"
+        dataset.StudyInstanceUID = "1.2.3"
+        file_meta = FileMetaDataset()
+        file_meta.MediaStorageSOPClassUID = dataset.SOPClassUID
+        file_meta.MediaStorageSOPInstanceUID = dataset.SOPInstanceUID
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        failed_status = SimpleNamespace(
+            Status=0xA702,
+            NumberOfFailedSuboperations=1,
+            NumberOfWarningSuboperations=0,
+            NumberOfCompletedSuboperations=0,
+            NumberOfRemainingSuboperations=0,
+        )
+        assoc = MagicMock(is_established=True)
+
+        def associate(*_args, **kwargs):
+            handler = kwargs["evt_handlers"][0][1]
+
+            def responses():
+                with patch.object(dataset, "save_as", side_effect=OSError("path too long")):
+                    self.assertEqual(
+                        handler(SimpleNamespace(dataset=dataset, file_meta=file_meta)),
+                        0xC000,
+                    )
+                yield failed_status, None
+
+            assoc.send_c_get.side_effect = lambda *_a, **_kw: responses()
+            return assoc
+
+        ae = MagicMock()
+        ae.associate.side_effect = associate
+        with TemporaryDirectory() as directory:
+            client = PACSClient(_config(directory))
+            with patch.object(client, "_create_ae", return_value=ae):
+                result = client.download_study("1.2.3", lookup_metadata=False)
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["received_files"], 0)
+        self.assertEqual(result["failed_suboperations"], 1)
 
 
 if __name__ == "__main__":

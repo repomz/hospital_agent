@@ -126,6 +126,50 @@ class PACSPollingTests(unittest.TestCase):
             [call.args[1]["study_uid"] for call in get_study.call_args_list],
             ["1.2.1", "1.2.2"],
         )
+
+    def test_polling_does_not_start_another_study_after_shutdown_request(self):
+        studies = [
+            {"uid": "1.2.1", "date": "20260727", "time": "120000"},
+            {"uid": "1.2.2", "date": "20260729", "time": "120000"},
+        ]
+        pacs_client = MagicMock()
+        pacs_client.find_studies.return_value = studies
+        stopping = False
+
+        def finish_first_study(*_args, **_kwargs):
+            nonlocal stopping
+            stopping = True
+
+        with TemporaryDirectory() as directory:
+            config = SimpleNamespace(
+                state_file=Path(directory) / "state.json",
+                pacs_config_path=Path(directory) / "config.json",
+            )
+            with patch(
+                "hospital_agent.polling.pacs_studies.datetime",
+                FrozenWednesdayDatetime,
+            ), patch(
+                "hospital_agent.services.pacs.PACSClient",
+                return_value=pacs_client,
+            ), patch(
+                "hospital_agent.support.dicom.load_pacs_config",
+                return_value={},
+            ), patch(
+                "hospital_agent.polling.pacs_studies.get_dicom_study",
+                side_effect=finish_first_study,
+            ) as get_study:
+                sent = run_modality_polling(
+                    config,
+                    SimpleNamespace(state=True),
+                    "XA",
+                    MagicMock(),
+                    AgentState(),
+                    stop_requested=lambda: stopping,
+                )
+
+        self.assertEqual(sent, 1)
+        self.assertEqual(get_study.call_count, 1)
+
     def test_expiration_does_not_disable_persistent_xa_polling(self):
         with TemporaryDirectory() as directory:
             config = SimpleNamespace(

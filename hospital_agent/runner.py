@@ -68,12 +68,26 @@ def _build_runtimes(
         PollingRuntime(
             "ct",
             config.ct_polling,
-            lambda: run_modality_polling(config, config.ct_polling, "CT", viewer, state),
+            lambda: run_modality_polling(
+                config,
+                config.ct_polling,
+                "CT",
+                viewer,
+                state,
+                stop_requested=lambda: not _running,
+            ),
         ),
         PollingRuntime(
             "xa",
             config.xa_polling,
-            lambda: run_modality_polling(config, config.xa_polling, "XA", viewer, state),
+            lambda: run_modality_polling(
+                config,
+                config.xa_polling,
+                "XA",
+                viewer,
+                state,
+                stop_requested=lambda: not _running,
+            ),
         ),
         PollingRuntime(
             "yandex_cleanup",

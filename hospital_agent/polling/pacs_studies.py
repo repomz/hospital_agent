@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, time, timedelta, timezone
+from typing import Callable
 
 from ..config import AgentConfig, PollingConfig, update_polling_state
 from ..http_client import ViewerClient
@@ -39,9 +40,10 @@ def run_modality_polling(
     modality: str,
     viewer: ViewerClient,
     state: AgentState,
+    stop_requested: Callable[[], bool] | None = None,
 ) -> int:
     """Передает CT за дежурство, а XA — автоматически за текущую неделю."""
-    if not polling.state:
+    if not polling.state or (stop_requested is not None and stop_requested()):
         return 0
     modality = modality.upper()
     now = datetime.now(timezone.utc)
@@ -80,7 +82,7 @@ def run_modality_polling(
     processed = state.processed_modality_studies.setdefault(modality, [])
     sent = 0
     for study in studies:
-        if not polling.state:
+        if not polling.state or (stop_requested is not None and stop_requested()):
             break
         study_uid = str(study.get("uid") or "")
         study_datetime = _study_datetime(study)

@@ -1,0 +1,905 @@
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093-3vtm_5ps\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000525.dcm.tmp'
+2026-07-31 20:02:20,508 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:02:20,509 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093-3vtm_5ps\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000527.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093-3vtm_5ps\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000527.dcm.tmp'
+2026-07-31 20:02:43,409 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:02:43,410 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093-3vtm_5ps\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000529.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093-3vtm_5ps\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000529.dcm.tmp'
+2026-07-31 20:02:59,704 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:02:59,705 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093-3vtm_5ps\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000531.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093-3vtm_5ps\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000531.dcm.tmp'
+2026-07-31 20:03:04,434 | INFO | agent_1 | hospital_agent/polling/alive.py:24 | Heartbeat sent: endpoint=/agent_status status=well
+2026-07-31 20:03:21,202 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:03:21,203 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093-3vtm_5ps\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000533.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093-3vtm_5ps\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000533.dcm.tmp'
+2026-07-31 20:03:44,579 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:03:44,579 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093-3vtm_5ps\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000535.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093-3vtm_5ps\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000535.dcm.tmp'
+2026-07-31 20:03:45,598 | INFO | agent_1 | hospital_agent/services/pacs.py:363 | PACS download complete: files=0 bytes=0 duration=501.97s dir=C:\Users\ANGIO_~1\AppData\Local\Temp\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093-3vtm_5ps\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093
+2026-07-31 20:03:45,599 | WARNING | agent_1 | hospital_agent/services/pacs.py:371 | Expected 25 instances but received 0
+2026-07-31 20:03:45,603 | WARNING | agent_1 | hospital_agent/polling/pacs_studies.py:108 | XA study 1.2.392.200036.9116.3.1.11602139.30000026072609154865600000093 failed: PACS C-GET incomplete: received=0 expected=25 failed=25 status=0xA702
+2026-07-31 20:04:04,655 | INFO | agent_1 | hospital_agent/polling/alive.py:24 | Heartbeat sent: endpoint=/agent_status status=well
+2026-07-31 20:04:10,062 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:04:10,064 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000537.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000537.dcm.tmp'
+2026-07-31 20:04:28,217 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:04:28,218 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000539.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000539.dcm.tmp'
+2026-07-31 20:04:46,882 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:04:46,883 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000541.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000541.dcm.tmp'
+2026-07-31 20:05:04,682 | INFO | agent_1 | hospital_agent/polling/alive.py:24 | Heartbeat sent: endpoint=/agent_status status=well
+2026-07-31 20:05:11,912 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:05:11,913 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000543.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000543.dcm.tmp'
+2026-07-31 20:05:29,913 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:05:29,914 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000545.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000545.dcm.tmp'
+2026-07-31 20:05:49,405 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:05:49,406 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000547.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000547.dcm.tmp'
+2026-07-31 20:06:05,118 | INFO | agent_1 | hospital_agent/polling/alive.py:24 | Heartbeat sent: endpoint=/agent_status status=well
+2026-07-31 20:06:09,784 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:06:09,785 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000549.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000549.dcm.tmp'
+2026-07-31 20:06:28,867 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:06:28,868 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000551.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000551.dcm.tmp'
+2026-07-31 20:06:43,629 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:06:43,629 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000553.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000553.dcm.tmp'
+2026-07-31 20:07:00,211 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:07:00,212 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000555.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000555.dcm.tmp'
+2026-07-31 20:07:05,288 | INFO | agent_1 | hospital_agent/polling/alive.py:24 | Heartbeat sent: endpoint=/agent_status status=well
+2026-07-31 20:07:31,337 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:07:31,338 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000557.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000557.dcm.tmp'
+2026-07-31 20:07:53,768 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:07:53,769 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000559.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000559.dcm.tmp'
+2026-07-31 20:08:05,836 | INFO | agent_1 | hospital_agent/polling/alive.py:24 | Heartbeat sent: endpoint=/agent_status status=well
+2026-07-31 20:08:12,166 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:08:12,167 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000561.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000561.dcm.tmp'
+2026-07-31 20:08:30,456 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:08:30,457 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000563.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000563.dcm.tmp'
+2026-07-31 20:08:52,312 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:08:52,313 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000565.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000565.dcm.tmp'
+2026-07-31 20:09:06,062 | INFO | agent_1 | hospital_agent/polling/alive.py:24 | Heartbeat sent: endpoint=/agent_status status=well
+2026-07-31 20:09:26,308 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:09:26,309 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000567.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000567.dcm.tmp'
+2026-07-31 20:09:42,043 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:09:42,044 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000569.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000569.dcm.tmp'
+2026-07-31 20:10:04,000 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:10:04,001 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000571.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000571.dcm.tmp'
+2026-07-31 20:10:06,317 | INFO | agent_1 | hospital_agent/polling/alive.py:24 | Heartbeat sent: endpoint=/agent_status status=well
+2026-07-31 20:10:19,456 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:10:19,456 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000573.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000573.dcm.tmp'
+2026-07-31 20:10:21,015 | INFO | agent_1 | hospital_agent/services/pacs.py:363 | PACS download complete: files=0 bytes=0 duration=391.76s dir=C:\Users\ANGIO_~1\AppData\Local\Temp\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097-9mopzbzt\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097
+2026-07-31 20:10:21,015 | WARNING | agent_1 | hospital_agent/services/pacs.py:371 | Expected 19 instances but received 0
+2026-07-31 20:10:21,019 | WARNING | agent_1 | hospital_agent/polling/pacs_studies.py:108 | XA study 1.2.392.200036.9116.3.1.11602139.30000026072609154865600000097 failed: PACS C-GET incomplete: received=0 expected=19 failed=19 status=0xA702
+2026-07-31 20:10:45,630 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:10:45,631 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101-oaayu47n\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000575.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101-oaayu47n\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000575.dcm.tmp'
+2026-07-31 20:11:01,468 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:11:01,469 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101-oaayu47n\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000577.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101-oaayu47n\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000577.dcm.tmp'
+2026-07-31 20:11:07,145 | INFO | agent_1 | hospital_agent/polling/alive.py:24 | Heartbeat sent: endpoint=/agent_status status=well
+2026-07-31 20:11:16,913 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:11:16,914 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101-oaayu47n\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000579.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101-oaayu47n\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000579.dcm.tmp'
+2026-07-31 20:11:36,416 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:11:36,417 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101-oaayu47n\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000581.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101-oaayu47n\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000581.dcm.tmp'
+2026-07-31 20:11:53,864 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:11:53,864 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101-oaayu47n\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000583.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101-oaayu47n\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000583.dcm.tmp'
+2026-07-31 20:12:07,931 | INFO | agent_1 | hospital_agent/polling/alive.py:24 | Heartbeat sent: endpoint=/agent_status status=well
+2026-07-31 20:12:09,555 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:12:09,555 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101-oaayu47n\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000585.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101-oaayu47n\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000585.dcm.tmp'
+2026-07-31 20:12:26,936 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:12:26,937 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101-oaayu47n\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000587.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101-oaayu47n\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000587.dcm.tmp'
+2026-07-31 20:12:29,106 | INFO | agent_1 | hospital_agent/services/pacs.py:363 | PACS download complete: files=0 bytes=0 duration=124.49s dir=C:\Users\ANGIO_~1\AppData\Local\Temp\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101-oaayu47n\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101
+2026-07-31 20:12:29,107 | WARNING | agent_1 | hospital_agent/services/pacs.py:371 | Expected 7 instances but received 0
+2026-07-31 20:12:29,112 | WARNING | agent_1 | hospital_agent/polling/pacs_studies.py:108 | XA study 1.2.392.200036.9116.3.1.11602139.30000026072609154865600000101 failed: PACS C-GET incomplete: received=0 expected=7 failed=7 status=0xA702
+2026-07-31 20:12:57,254 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:12:57,255 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105-hos8z5u_\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000589.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105-hos8z5u_\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000589.dcm.tmp'
+2026-07-31 20:13:07,945 | INFO | agent_1 | hospital_agent/polling/alive.py:24 | Heartbeat sent: endpoint=/agent_status status=well
+2026-07-31 20:13:15,414 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:13:15,415 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105-hos8z5u_\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000591.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105-hos8z5u_\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000591.dcm.tmp'
+2026-07-31 20:13:33,866 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:13:33,867 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105-hos8z5u_\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000593.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105-hos8z5u_\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000593.dcm.tmp'
+2026-07-31 20:13:53,966 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:13:53,967 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105-hos8z5u_\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000595.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105-hos8z5u_\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000595.dcm.tmp'
+2026-07-31 20:13:59,111 | INFO | agent_1 | hospital_agent/runner.py:41 | Shutdown requested: signal=2
+2026-07-31 20:14:08,083 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:14:08,085 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105-hos8z5u_\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000597.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105-hos8z5u_\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000597.dcm.tmp'
+2026-07-31 20:14:26,721 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:14:26,722 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105-hos8z5u_\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000599.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105-hos8z5u_\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000599.dcm.tmp'
+2026-07-31 20:14:43,126 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:14:43,128 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105-hos8z5u_\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000601.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105-hos8z5u_\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000601.dcm.tmp'
+2026-07-31 20:15:06,752 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:15:06,769 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105-hos8z5u_\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000603.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105-hos8z5u_\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000603.dcm.tmp'
+2026-07-31 20:15:38,907 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:15:38,907 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105-hos8z5u_\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000605.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105-hos8z5u_\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000605.dcm.tmp'
+2026-07-31 20:15:40,787 | INFO | agent_1 | hospital_agent/services/pacs.py:363 | PACS download complete: files=0 bytes=0 duration=188.14s dir=C:\Users\ANGIO_~1\AppData\Local\Temp\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105-hos8z5u_\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105
+2026-07-31 20:15:40,787 | WARNING | agent_1 | hospital_agent/services/pacs.py:371 | Expected 9 instances but received 0
+2026-07-31 20:15:40,790 | WARNING | agent_1 | hospital_agent/polling/pacs_studies.py:108 | XA study 1.2.392.200036.9116.3.1.11602139.30000026072609154865600000105 failed: PACS C-GET incomplete: received=0 expected=9 failed=9 status=0xA702
+2026-07-31 20:16:07,986 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:16:07,987 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000113-pxpytvij\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000113\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000607.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000113-pxpytvij\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000113\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000607.dcm.tmp'
+2026-07-31 20:16:34,634 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:16:34,635 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000113-pxpytvij\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000113\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000609.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000113-pxpytvij\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000113\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000609.dcm.tmp'
+2026-07-31 20:17:00,480 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:17:00,481 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000113-pxpytvij\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000113\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000611.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000113-pxpytvij\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000113\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000611.dcm.tmp'
+2026-07-31 20:17:31,642 | ERROR | agent_1 | association.py:867 | Exception in the handler bound to 'evt.EVT_C_STORE'
+2026-07-31 20:17:31,643 | ERROR | agent_1 | association.py:868 | [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000113-pxpytvij\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000113\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000613.dcm.tmp'
+Traceback (most recent call last):
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\association.py", line 863, in _c_store_scp
+    status = evt.trigger(
+             ^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pynetdicom\events.py", line 365, in trigger
+    return handlers[0](evt)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\hospital_agent\services\pacs.py", line 275, in handle_store
+    dataset.save_as(str(temporary_filename), enforce_file_format=True)
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\dataset.py", line 2642, in save_as
+    pydicom.dcmwrite(
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filewriter.py", line 1410, in dcmwrite
+    fp: DicomIO = DicomFile(filename, file_mode)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Angio_hir1\Desktop\marat\projects\viewer_agent\.venv\Lib\site-packages\pydicom\filebase.py", line 284, in DicomFile
+    return DicomFileLike(open(*args, **kwargs))
+                         ^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ANGIO_~1\\AppData\\Local\\Temp\\hospital-agent-poll-xa-1.2.392.200036.9116.3.1.11602139.30000026072609154865600000113-pxpytvij\\1.2.392.200036.9116.3.1.11602139.30000026072609154865600000113\\1.2.392.200036.9116.3.1.11602139.30000026072609223737500000613.dcm.tmp'

@@ -222,9 +222,11 @@ def get_dicom_study(
     pacs_config = load_pacs_config(str(config.pacs_config_path))
     local_config = pacs_config.setdefault("local", {})
     original_output_dir = local_config.get("output_dir")
-    safe_request_id = re.sub(r"[^A-Za-z0-9._-]", "_", request_id)[:80] or "request"
     try:
-        with tempfile.TemporaryDirectory(prefix=f"hospital-agent-{safe_request_id}-") as tmp_dir:
+        # Request IDs may contain a full StudyInstanceUID.  Keep the temporary
+        # root deliberately short so nested DICOM paths also work on Windows
+        # installations without long-path support.
+        with tempfile.TemporaryDirectory(prefix="ha-") as tmp_dir:
             local_config["output_dir"] = tmp_dir
             client = PACSClient(pacs_config)
             download = client.download_study(study_uid, lookup_metadata=False)
