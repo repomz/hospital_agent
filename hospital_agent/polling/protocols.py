@@ -2,7 +2,7 @@ import hashlib
 import logging
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -69,6 +69,52 @@ def protocol_identity(payload: dict[str, Any]) -> str:
         )
     )
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _operation_datetime_from_payload(
+    payload: dict[str, Any],
+    local_timezone: Any,
+) -> datetime | None:
+    """Возвращает локальное время операции из RFC3339-поля протокола."""
+    raw_value = str(payload.get("time_beginning") or "").strip()
+    if not raw_value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(raw_value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=local_timezone)
+    return parsed.astimezone(local_timezone)
+
+
+def _current_week_window(now: datetime | None = None) -> tuple[datetime, datetime]:
+    """Возвращает период от понедельника 00:00 до текущего локального времени."""
+    if now is None:
+        local_now = datetime.now().astimezone()
+    elif now.tzinfo is None:
+        local_now = now.astimezone()
+    else:
+        local_now = now
+    week_start = (local_now - timedelta(days=local_now.weekday())).replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+    return week_start, local_now
+
+
+def _remember_protocol_signature(
+    config: AgentConfig,
+    state: AgentState,
+    state_key: str,
+    signature: str,
+) -> None:
+    """Запоминает проверенную версию файла между циклами polling."""
+    with state.lock:
+        state.processed_protocols[state_key] = signature
+        save_state(config.state_file, state)
 
 
 def _normalize_text(value: str) -> str:
@@ -264,9 +310,11 @@ def poll_operation_protocols(
     polling: PollingConfig,
     viewer: ViewerClient,
     state: AgentState,
+    now: datetime | None = None,
 ) -> int:
-    """Ищет новые DOCX-протоколы и отправляет их JSON на viewer /studies."""
+    """Отправляет новые DOCX-протоколы текущей недели на viewer /studies."""
     sent_count = 0
+    week_start, local_now = _current_week_window(now)
     known_protocol_keys = set(state.processed_protocol_keys)
     for path in iter_protocol_files(polling.operations_dirs or []):
         signature = protocol_signature(path)
@@ -278,16 +326,36 @@ def poll_operation_protocols(
         if payload is None:
             # Не повторяем ошибку на каждом polling. Если файл исправят,
             # размер или mtime изменится, подпись станет новой и он обработается снова.
-            with state.lock:
-                state.processed_protocols[state_key] = signature
-                save_state(config.state_file, state)
+            _remember_protocol_signature(config, state, state_key, signature)
+            continue
+
+        operation_datetime = _operation_datetime_from_payload(payload, local_now.tzinfo)
+        if operation_datetime is None:
+            LOGGER.warning(
+                "Protocol has no valid time_beginning and was not sent: %s",
+                path,
+            )
+            _remember_protocol_signature(config, state, state_key, signature)
+            continue
+        if operation_datetime < week_start:
+            _remember_protocol_signature(config, state, state_key, signature)
+            LOGGER.info(
+                "Protocol before current week skipped: operation_time=%s file=%s",
+                operation_datetime.isoformat(),
+                path,
+            )
+            continue
+        if operation_datetime > local_now:
+            LOGGER.warning(
+                "Future-dated protocol deferred: operation_time=%s file=%s",
+                operation_datetime.isoformat(),
+                path,
+            )
             continue
 
         identity = protocol_identity(payload)
         if identity in known_protocol_keys:
-            with state.lock:
-                state.processed_protocols[state_key] = signature
-                save_state(config.state_file, state)
+            _remember_protocol_signature(config, state, state_key, signature)
             continue
 
         if viewer.post_json("/studies", payload):

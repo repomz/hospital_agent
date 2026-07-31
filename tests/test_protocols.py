@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -189,12 +190,70 @@ class ProtocolMappingTests(unittest.TestCase):
                     polling,
                     viewer,
                     state,
+                    now=datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc),
                 )
 
             self.assertEqual(sent, 1)
             viewer.post_json.assert_called_once_with("/studies", payload)
             self.assertEqual(len(state.processed_protocols), 2)
             self.assertEqual(len(state.processed_protocol_keys), 1)
+
+    def test_polling_only_sends_protocols_from_current_monday(self):
+        local_tz = timezone(timedelta(hours=7))
+        now = datetime(2026, 7, 29, 12, 0, tzinfo=local_tz)
+        payloads = {
+            "old.docx": {
+                "study_id": "1",
+                "time_beginning": "2026-07-26T12:00:00+07:00",
+                "patient": "Старый Пациент",
+            },
+            "monday.docx": {
+                "study_id": "2",
+                "time_beginning": "2026-07-27T00:00:00+07:00",
+                "patient": "Текущий Пациент",
+            },
+            "future.docx": {
+                "study_id": "3",
+                "time_beginning": "2026-07-30T12:00:00+07:00",
+                "patient": "Будущий Пациент",
+            },
+        }
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            for filename in payloads:
+                (root / filename).write_bytes(filename.encode("ascii"))
+            config = SimpleNamespace(agent_id="2", state_file=root / "state.json")
+            polling = PollingConfig(state=True, interval_min=1, operations_dirs=[root])
+            state = AgentState()
+            viewer = SimpleNamespace(post_json=MagicMock(return_value=True))
+
+            with patch(
+                "hospital_agent.polling.protocols.parse_protocol",
+                side_effect=lambda path, _agent_id: payloads[path.name],
+            ) as parser:
+                sent = poll_operation_protocols(
+                    config,
+                    polling,
+                    viewer,
+                    state,
+                    now=now,
+                )
+                sent_again = poll_operation_protocols(
+                    config,
+                    polling,
+                    viewer,
+                    state,
+                    now=now,
+                )
+
+            self.assertEqual(sent, 1)
+            self.assertEqual(sent_again, 0)
+            viewer.post_json.assert_called_once_with("/studies", payloads["monday.docx"])
+            self.assertEqual(parser.call_count, 4)
+            self.assertIn(str((root / "old.docx").resolve()), state.processed_protocols)
+            self.assertIn(str((root / "monday.docx").resolve()), state.processed_protocols)
+            self.assertNotIn(str((root / "future.docx").resolve()), state.processed_protocols)
 
 
 if __name__ == "__main__":
