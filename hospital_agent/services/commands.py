@@ -108,12 +108,24 @@ def find_dicom_studies(
         raise ValueError(f"find_{modality.lower()} requires patient")
     period = str(payload.get("period") or "today").strip().lower()
     date_value = str(payload.get("date") or "").strip() or None
-    if period not in {"today", "yesterday", "week", "month"}:
+    supported_periods = {
+        "today",
+        "yesterday",
+        "three_days",
+        "week",
+        "month",
+        "six_months",
+        "year",
+    }
+    if period not in supported_periods:
         if re.fullmatch(r"\d{4}-\d{2}-\d{2}", period):
             date_value = period
             period = ""
         else:
-            raise ValueError("period must be today, yesterday, week, month, or YYYY-MM-DD")
+            raise ValueError(
+                "period must be today, yesterday, three_days, week, month, "
+                "six_months, year, or YYYY-MM-DD"
+            )
 
     pacs_config = load_pacs_config(str(config.pacs_config_path))
     studies = PACSClient(pacs_config).find_studies(

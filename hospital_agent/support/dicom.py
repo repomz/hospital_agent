@@ -43,10 +43,16 @@ def build_date_range(period: str | None, date_value: str | None = None) -> str:
         return now.strftime("%Y%m%d")
     if period == "yesterday":
         return (now - timedelta(days=1)).strftime("%Y%m%d")
-    if period == "week":
-        return (now - timedelta(days=7)).strftime("%Y%m%d") + "-" + now.strftime("%Y%m%d")
-    if period == "month":
-        return (now - timedelta(days=30)).strftime("%Y%m%d") + "-" + now.strftime("%Y%m%d")
+    days_by_period = {
+        "three_days": 2,
+        "week": 6,
+        "month": 29,
+        "six_months": 182,
+        "year": 364,
+    }
+    if period in days_by_period:
+        start = now - timedelta(days=days_by_period[period])
+        return start.strftime("%Y%m%d") + "-" + now.strftime("%Y%m%d")
     return ""
 
 

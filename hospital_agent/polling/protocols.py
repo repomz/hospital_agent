@@ -10,9 +10,11 @@ from ..services.operation_reports import (
     parse_operation_datetime,
     parse_operation_description,
     parse_operation_from_content,
+    parse_recommendation,
     parse_patient_from_content,
     read_docx_text,
     is_operation_docx_candidate,
+    shorten_operation_description,
 )
 
 from ..config import AgentConfig, PollingConfig
@@ -120,6 +122,44 @@ def _remember_protocol_signature(
 def _normalize_text(value: str) -> str:
     """Нормализует пробелы в извлеченном из DOCX тексте."""
     return re.sub(r"\s+", " ", value.replace("\xa0", " ")).strip()
+
+
+def _protocol_sections(description: str, recommendation: str = "") -> str:
+    """Сжимает ход операции и выносит клиническое заключение на первое место."""
+    normalized = _normalize_text(description)
+    marker = re.search(
+        r"\b(?:в\s+ходе\s+исследования\s+выявлено|заключение)\s*:\s*",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    if marker:
+        raw_course = normalized[: marker.start()].strip(" .")
+        raw_conclusion = normalized[marker.end() :].strip(" .")
+    else:
+        raw_course = normalized
+        diagnostic_sentences = [
+            sentence.strip()
+            for sentence in re.split(r"(?<=[.!?])\s+", normalized)
+            if re.search(
+                r"\b(?:выявлен\w*|стеноз\w*|окклюзи\w*|кровоток\w*|"
+                r"проходимост\w*|контроль\w*|осложнени\w*)\b",
+                sentence,
+                flags=re.IGNORECASE,
+            )
+        ]
+        raw_conclusion = " ".join(diagnostic_sentences) or normalized
+
+    conclusion = shorten_operation_description(raw_conclusion) or raw_conclusion
+    if conclusion:
+        conclusion = conclusion[:1].upper() + conclusion[1:]
+    course = shorten_operation_description(raw_course) or raw_course
+    sections = [f"ЗАКЛЮЧЕНИЕ:\n{conclusion or 'Не выделено в исходном протоколе.'}"]
+    if course and course.casefold() != conclusion.casefold():
+        sections.append(f"ХОД ОПЕРАЦИИ:\n{course}")
+    compact_recommendation = shorten_operation_description(recommendation)
+    if compact_recommendation:
+        sections.append(f"РЕКОМЕНДАЦИИ:\n{compact_recommendation}")
+    return "\n\n".join(sections)
 
 
 def parse_study_id(content: str) -> str | None:
@@ -290,6 +330,7 @@ def parse_protocol(path: Path, agent_id: str) -> dict[str, Any] | None:
 
     record_number = parse_medical_record_number(content)
     description = parse_operation_description(content)
+    recommendation = parse_recommendation(content)
     return {
         "study_id": study_id,
         "patient": patient,
@@ -297,7 +338,7 @@ def parse_protocol(path: Path, agent_id: str) -> dict[str, Any] | None:
         "department": department_from_record_number(record_number) or "не указано",
         "name_operation": full_operation,
         "study_type": study_type,
-        "descr_operation": _normalize_text(description) or operation,
+        "descr_operation": _protocol_sections(description, recommendation),
         "time_beginning": _rfc3339(operation_datetime),
         "time_duration": parse_operation_duration_min(content),
         "surgeon": surgeon,

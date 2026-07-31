@@ -1,5 +1,6 @@
 import unittest
 import warnings
+from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -15,6 +16,7 @@ from pynetdicom.sop_class import (
 )
 
 from hospital_agent.services.pacs import PACSClient
+from hospital_agent.support.dicom import build_date_range
 
 
 def _config(output_dir: str) -> dict:
@@ -34,6 +36,16 @@ def _config(output_dir: str) -> dict:
 
 
 class PACSClientTests(unittest.TestCase):
+    def test_named_search_periods_cover_requested_calendar_window(self):
+        with patch("hospital_agent.support.dicom.datetime") as mocked_datetime:
+            mocked_datetime.now.return_value = datetime(2026, 7, 31, 12, 0)
+            mocked_datetime.strptime = datetime.strptime
+            self.assertEqual(build_date_range("three_days"), "20260729-20260731")
+            self.assertEqual(build_date_range("week"), "20260725-20260731")
+            self.assertEqual(build_date_range("month"), "20260702-20260731")
+            self.assertEqual(build_date_range("six_months"), "20260130-20260731")
+            self.assertEqual(build_date_range("year"), "20250801-20260731")
+
     def test_real_local_association_find_and_get_round_trip(self):
         warning_context = warnings.catch_warnings()
         warning_context.__enter__()

@@ -75,10 +75,8 @@ class ProtocolMappingTests(unittest.TestCase):
         )
         self.assertEqual(
             payload["descr_operation"],
-            "Под МИА 0,5% новокаина, в положении на спине выполнена пункция "
-            "правой лучевой артерии по «Сельдингеру» с установкой интродьюсера "
-            "6F. В ходе исследования выявлено: выполнена тромбоаспирация из I "
-            "ветки тупого края.",
+            "ЗАКЛЮЧЕНИЕ:\nВыполнена ТА из I ВТК.\n\n"
+            "ХОД ОПЕРАЦИИ:\nДоступ: правой лучевой артерии, 6F.",
         )
 
     def test_protocol_accepts_new_operation_type_and_surgeon(self):
