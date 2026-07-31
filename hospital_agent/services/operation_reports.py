@@ -1169,12 +1169,25 @@ def generate_operations_report(
     plan_dir: str = DEFAULT_PLAN_DIR,
     report_dir: str = DEFAULT_REPORT_DIR,
     end_period: datetime | None = None,
+    planned_details_for_period: list | None = None,
+    planned_details_today: list | None = None,
 ) -> dict:
-    """Сканирует DOCX, сохраняет TXT и возвращает JSON-данные для backend."""
+    """Сканирует протоколы и использует сохранённый backend-план при наличии."""
     end_period = end_period or datetime.now()
     start_period = end_period - timedelta(days=period)
-    planned_patients, planned_details_for_period = get_plan_data(plan_dir, start_period)
-    _, planned_details_today = get_plan_data(plan_dir, end_period)
+    if planned_details_for_period is None:
+        planned_patients, planned_details_for_period = get_plan_data(
+            plan_dir,
+            start_period,
+        )
+    else:
+        planned_patients = {
+            str(item.get("patient", "")).strip()
+            for item in planned_details_for_period
+            if isinstance(item, dict) and str(item.get("patient", "")).strip()
+        }
+    if planned_details_today is None:
+        _, planned_details_today = get_plan_data(plan_dir, end_period)
 
     all_operations = []
     for file_path in iter_operation_files([dir1, dir2]):

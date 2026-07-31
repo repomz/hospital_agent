@@ -428,6 +428,9 @@ def generate_report_from_payload(
     dir1 = str(operations_dirs[0]) if operations_dirs else ""
     dir2 = str(operations_dirs[1]) if len(operations_dirs) > 1 else ""
     duty_end = _last_completed_duty_end(datetime.now())
+    duty_start = duty_end - timedelta(days=period)
+    previous_plan = _load_backend_plan_day(viewer, duty_start)
+    current_plan = _load_backend_plan_day(viewer, duty_end)
     result = generate_operations_report(
         period=period,
         time_value="08:00",
@@ -436,6 +439,8 @@ def generate_report_from_payload(
         plan_dir=str(config.plan_dir),
         report_dir=str(config.report_dir),
         end_period=duty_end,
+        planned_details_for_period=previous_plan,
+        planned_details_today=current_plan,
     )
     report_payload = {
         "agent_id": int(config.agent_id),
@@ -447,6 +452,39 @@ def generate_report_from_payload(
     return {
         "report": result["report"],
     }
+
+
+def _load_backend_plan_day(
+    viewer: ViewerClient,
+    target: datetime,
+) -> list[dict[str, str]] | None:
+    """Читает план дня из backend; None оставляет совместимость с DOCX."""
+    date_value = target.strftime("%Y-%m-%d")
+    payload = viewer.get_json(f"/operation-plan?week_start={date_value}")
+    if not isinstance(payload, dict):
+        return None
+    if isinstance(payload.get("data"), dict):
+        payload = payload["data"]
+    days = payload.get("days")
+    if not isinstance(days, list):
+        return None
+    for day in days:
+        if not isinstance(day, dict) or day.get("date") != date_value:
+            continue
+        entries = day.get("entries")
+        if not isinstance(entries, list):
+            return []
+        return [
+            {
+                "patient": str(entry.get("patient") or ""),
+                "birth_date": "",
+                "department": str(entry.get("department") or ""),
+                "operation": str(entry.get("operation") or ""),
+            }
+            for entry in entries
+            if isinstance(entry, dict)
+        ]
+    return []
 
 
 def _last_completed_duty_end(now: datetime) -> datetime:
