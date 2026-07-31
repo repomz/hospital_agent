@@ -18,7 +18,7 @@ from .operation_reports import generate_operations_report
 LOGGER = logging.getLogger("hospital_agent.services.commands")
 
 GET_REPORT = "get_report"
-GET_PLAN = "get_plan"
+SYNC_STUDIES = "sync_studies"
 FIND_STUDY = "find_study"
 IMPORT_STUDY = "import_study"
 FIND_XA = "find_xa"
@@ -62,12 +62,22 @@ def execute_user_command(
         if viewer is None:
             raise RuntimeError("import_study requires viewer")
         return import_operation_protocol(config, payload, viewer)
+    if command == SYNC_STUDIES:
+        if viewer is None or state is None:
+            raise RuntimeError("sync_studies requires viewer and state")
+        from ..polling.protocols import poll_operation_protocols
+
+        sent = poll_operation_protocols(
+            config,
+            config.study_polling,
+            viewer,
+            state,
+        )
+        return {"sent": sent}
     if command == GET_REPORT:
         if viewer is None:
             raise RuntimeError("get_report requires viewer")
         return generate_report_from_payload(config, payload, viewer)
-    if command == GET_PLAN:
-        return get_operation_plan(config, payload)
     if command in {XA_POLLING_ON, XA_POLLING_OFF, CT_POLLING_ON, CT_POLLING_OFF}:
         if state is None:
             raise RuntimeError(f"{command} requires state")
@@ -183,50 +193,6 @@ def import_operation_protocol(
             raise RuntimeError("backend rejected selected operation protocol")
         return {"study": protocol, "imported": True}
     raise FileNotFoundError("selected operation protocol no longer exists")
-
-
-def get_operation_plan(
-    config: AgentConfig,
-    payload: dict[str, Any],
-) -> dict[str, Any]:
-    """Возвращает план на рабочую неделю и выбранный день из недельного DOCX."""
-    from .operation_reports import get_plan_data
-
-    raw_date = str(payload.get("date") or "").strip()
-    selected = datetime.strptime(raw_date, "%Y-%m-%d") if raw_date else datetime.now()
-    monday = selected - timedelta(days=selected.weekday())
-    days = []
-    for offset in range(5):
-        current = monday + timedelta(days=offset)
-        _, operations = get_plan_data(str(config.plan_dir), current)
-        normalized = []
-        for operation in operations:
-            item = dict(operation)
-            birth_date = str(item.get("birth_date") or "")
-            age = None
-            if birth_date:
-                try:
-                    born = datetime.strptime(birth_date, "%d.%m.%Y")
-                    age = current.year - born.year - (
-                        (current.month, current.day) < (born.month, born.day)
-                    )
-                except ValueError:
-                    pass
-            item["age"] = age
-            normalized.append(item)
-        days.append(
-            {
-                "date": current.strftime("%Y-%m-%d"),
-                "weekday": current.strftime("%A"),
-                "operations": normalized,
-            }
-        )
-    return {
-        "week_start": monday.strftime("%Y-%m-%d"),
-        "week_end": (monday + timedelta(days=4)).strftime("%Y-%m-%d"),
-        "selected_date": selected.strftime("%Y-%m-%d"),
-        "days": days,
-    }
 
 
 def get_dicom_study(
@@ -436,7 +402,6 @@ def generate_report_from_payload(
         time_value="08:00",
         dir1=dir1,
         dir2=dir2,
-        plan_dir=str(config.plan_dir),
         report_dir=str(config.report_dir),
         end_period=duty_end,
         planned_details_for_period=previous_plan,
@@ -457,17 +422,17 @@ def generate_report_from_payload(
 def _load_backend_plan_day(
     viewer: ViewerClient,
     target: datetime,
-) -> list[dict[str, str]] | None:
-    """Читает план дня из backend; None оставляет совместимость с DOCX."""
+) -> list[dict[str, str]]:
+    """Читает единственный допустимый план дня из backend."""
     date_value = target.strftime("%Y-%m-%d")
     payload = viewer.get_json(f"/operation-plan?week_start={date_value}")
     if not isinstance(payload, dict):
-        return None
+        raise RuntimeError("backend operation plan is unavailable")
     if isinstance(payload.get("data"), dict):
         payload = payload["data"]
     days = payload.get("days")
     if not isinstance(days, list):
-        return None
+        raise RuntimeError("backend operation plan has an invalid format")
     for day in days:
         if not isinstance(day, dict) or day.get("date") != date_value:
             continue

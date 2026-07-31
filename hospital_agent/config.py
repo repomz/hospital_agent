@@ -30,7 +30,6 @@ class AgentConfig:
     log_dir: Path
     state_file: Path
     pacs_config_path: Path
-    plan_dir: Path
     report_dir: Path
     report_time: str
     agent_id: str
@@ -115,10 +114,6 @@ def load_agent_config(path: str | Path = DEFAULT_CONFIG_PATH) -> AgentConfig:
         pacs_config_path=_resolve_local_path(
             base_dir,
             raw_config.get("pacs_config_path", "config.json"),
-        ),
-        plan_dir=_resolve_local_path(
-            base_dir,
-            raw_config.get("plan_dir", r"C:\Users\Angio_hir1\Desktop\План Отчеты"),
         ),
         report_dir=_resolve_local_path(
             base_dir,

@@ -147,7 +147,6 @@ class AppStartupTests(unittest.TestCase):
             "log_dir": "logs/agent",
             "state_file": "logs/agent/state.json",
             "pacs_config_path": "config.json",
-            "plan_dir": "plans",
             "report_dir": "reports",
             "report_time": "08:00",
             "study_polling": {
@@ -168,7 +167,6 @@ class AppStartupTests(unittest.TestCase):
             self.assertEqual(config.state_file, base_dir / "logs" / "agent" / "state.json")
             self.assertEqual(config.pacs_config_path, base_dir / "config.json")
             self.assertEqual(config.study_polling.operations_dirs, [base_dir / "operations"])
-            self.assertEqual(config.plan_dir, base_dir / "plans")
             self.assertEqual(config.report_dir, base_dir / "reports")
 
 

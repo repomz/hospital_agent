@@ -85,6 +85,28 @@ class CommandTests(unittest.TestCase):
                     execute_user_command(config, command, {}, "request-id")
                 )
 
+    def test_sync_studies_scans_configured_protocol_directories(self):
+        config = SimpleNamespace(
+            study_polling=SimpleNamespace(operations_dirs=[Path("operations")]),
+        )
+        viewer = ViewerStub()
+        state = AgentState()
+        with patch(
+            "hospital_agent.polling.protocols.poll_operation_protocols",
+            return_value=3,
+        ) as poll:
+            result = execute_user_command(
+                config,
+                "sync_studies",
+                {},
+                "request-id",
+                viewer=viewer,
+                state=state,
+            )
+
+        self.assertEqual(result, {"sent": 3})
+        poll.assert_called_once_with(config, config.study_polling, viewer, state)
+
     def test_polling_command_changes_memory_and_config_file(self):
         with TemporaryDirectory() as directory:
             base = Path(directory)

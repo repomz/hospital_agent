@@ -105,11 +105,10 @@ class UserRequestTests(unittest.TestCase):
 
         config = SimpleNamespace(
             study_polling=SimpleNamespace(operations_dirs=[Path("one"), Path("two")]),
-            plan_dir=Path("plans"),
             report_dir=Path("reports"),
             agent_id="2",
         )
-        viewer = FakeViewer()
+        viewer = FakeViewer({"days": []})
         with patch(
             "hospital_agent.services.commands.generate_operations_report",
             return_value=generated,

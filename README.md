@@ -117,7 +117,6 @@ pip install -e .
   "state_file": "logs/agent/state.json",
   "alive_polling_interval_min": 5,
   "pacs_config_path": "config.json",
-  "plan_dir": "C:\\План Отчеты",
   "report_dir": "C:\\План Отчеты\\отчеты",
   "report_time": "08:00",
   "user_requests_polling": {
@@ -134,7 +133,7 @@ pip install -e .
   },
   "study_polling": {
     "state": false,
-    "interval_min": 10,
+    "interval_min": 1,
     "operations_dir": [
       "C:\\Users\\Angio_hir1\\Desktop\\Операции 2026",
       "C:\\Users\\Angio_hir1\\Desktop\\2026 Опер №2"
@@ -200,18 +199,25 @@ pythonw hospital_agent.py
 - `find_study` — поиск стандартизованных протоколов операций по фамилии;
 - `import_study` — загрузка в backend одного выбранного результата по
   непрозрачному `protocol_ref`;
+- `sync_studies` — немедленная проверка всех `operations_dir` и отправка
+  новых протоколов на `/studies`;
 - `get_report` — отчет за предыдущие 1–4 дежурства с границей 08:00;
-- `get_plan` — план на текущую или выбранную рабочую неделю из датированного
-  DOCX в `plan_dir`;
 - `send_xa_to_pacs`, `send_ct_to_pacs` — повторная безопасная отправка
   выбранного DICOM-исследования в remote PACS;
 - `ct_polling_on`, `ct_polling_off`, `xa_polling_on`, `xa_polling_off` —
   изменение режима в памяти и в `agent_config.json`.
 
-При включённом `xa_polling` агент каждые `interval_min` минут проверяет XA
-текущей календарной недели и автоматически проводит новые исследования через
-Yandex в backend и удалённый PACS. В отличие от CT этот режим не выключается
-автоматически в 08:00.
+При включённом `xa_polling` агент каждые `interval_min` минут проверяет только
+XA текущей календарной недели. Новые XA проходят через Yandex, backend и
+удалённый PACS. В отличие от CT этот режим не выключается автоматически в
+08:00.
+
+Протоколы операций управляются отдельным блоком `study_polling`. При
+`study_polling.state: true` агент проверяет `operations_dir` с его собственным
+`interval_min` и отправляет новые протоколы на `/studies`. При `state: false`
+фоновая проверка протоколов не выполняется, но ручная команда `sync_studies`
+продолжает работать. Локальный план больничного компьютера агент не читает:
+единственный план создаётся и хранится в backend через web/mobile.
 
 Агент запрашивает только свою очередь: `GET /user_requests?agent_id=<agent_id>`.
 Backend переводит запрос `pending → in_progress`, а после callback с полями

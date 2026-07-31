@@ -11,7 +11,6 @@ LOGGER = logging.getLogger("hospital_agent.services.operation_reports")
 # --- НАСТРОЙКИ ПО УМОЛЧАНИЮ ---
 DEFAULT_TARGET_DIR_1 = r"C:\Users\Angio_hir1\Desktop\Операции 2026"
 DEFAULT_TARGET_DIR_2 = r"C:\Users\Angio_hir1\Desktop\2026 Опер №2"
-DEFAULT_PLAN_DIR = r"C:\Users\Angio_hir1\Desktop\План Отчеты"
 DEFAULT_REPORT_DIR = r"C:\Users\Angio_hir1\Desktop\План Отчеты\отчеты"
 DEFAULT_PERIOD = 1
 DEFAULT_TIME = "08:00"
@@ -418,176 +417,6 @@ def classify_operation(operation):
             return 4
     else:
         return 7
-
-def get_plan_data(plan_dir, target_date):
-    """Извлекает данные из файла плана для указанной даты"""
-    # Находим понедельник и пятницу недели, содержащей target_date
-    days_ahead = 0 - target_date.weekday()
-    monday = target_date + timedelta(days=days_ahead)
-    friday = monday + timedelta(days=4)
-    date_pattern = f"{monday.strftime('%d.%m')}-{friday.strftime('%d.%m')}"
-    
-    plan_files = list(Path(plan_dir).glob(f"{date_pattern}.docx"))
-    plan_files.extend(list(Path(plan_dir).glob(f"{date_pattern}.DOCX")))
-    
-    if not plan_files:
-        plan_files = list(Path(plan_dir).glob(f"*{date_pattern}*.docx"))
-    
-    if not plan_files:
-        return set(), []
-    
-    try:
-        with ZipFile(plan_files[0], 'r') as docx:
-            with docx.open('word/document.xml') as f:
-                tree = ET.parse(f)
-                root = tree.getroot()
-                ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
-                
-                tables = root.findall('.//w:tbl', ns)
-                if not tables:
-                    return set(), []
-                
-                table = tables[0]
-                rows = table.findall('.//w:tr', ns)
-                
-                # Ищем строку с нужной датой
-                target_date_str = target_date.strftime("%d.%m")
-                planned_patients = set()
-                planned_details = []
-                
-                i = 0
-                while i < len(rows):
-                    cells = rows[i].findall('.//w:tc', ns)
-                    if cells:
-                        # Получаем текст первой ячейки (дата)
-                        first_cell_text = []
-                        for para in cells[0].findall('.//w:p', ns):
-                            para_text = []
-                            for text_elem in para.findall('.//w:t', ns):
-                                if text_elem.text:
-                                    para_text.append(text_elem.text)
-                            if para_text:
-                                first_cell_text.append(''.join(para_text))
-                        first_cell_text = ' '.join(first_cell_text).strip()
-                        
-                        # Если нашли нужную дату
-                        if first_cell_text == target_date_str and i + 1 < len(rows):
-                            data_row = rows[i + 1]
-                            data_cells = data_row.findall('.//w:tc', ns)
-                            
-                            # Извлекаем пациентов (колонка 1)
-                            patient_lines = []
-                            if len(data_cells) > 1:
-                                # Сначала пробуем получить текст по параграфам
-                                for para in data_cells[1].findall('.//w:p', ns):
-                                    para_text = []
-                                    for text_elem in para.findall('.//w:t', ns):
-                                        if text_elem.text:
-                                            para_text.append(text_elem.text)
-                                    if para_text:
-                                        line = ''.join(para_text).strip()
-                                        if line:
-                                            patient_lines.append(line)
-                                # Если ничего не нашли, возможно данные в одной строке через пробелы
-                                if not patient_lines:
-                                    full_text = []
-                                    for para in data_cells[1].findall('.//w:p', ns):
-                                        para_text = []
-                                        for text_elem in para.findall('.//w:t', ns):
-                                            if text_elem.text:
-                                                para_text.append(text_elem.text)
-                                        if para_text:
-                                            full_text.append(''.join(para_text))
-                                    if full_text:
-                                        # Разбиваем по пробелам, фильтруем пустые строки
-                                        patient_lines = [p.strip() for p in ' '.join(full_text).split() if p.strip()]
-                            
-                            # Извлекаем отделения (колонка 2)
-                            department_lines = []
-                            if len(data_cells) > 2:
-                                for para in data_cells[2].findall('.//w:p', ns):
-                                    para_text = []
-                                    for text_elem in para.findall('.//w:t', ns):
-                                        if text_elem.text:
-                                            para_text.append(text_elem.text)
-                                    if para_text:
-                                        line = ''.join(para_text).strip()
-                                        if line:
-                                            department_lines.append(line)
-                                if not department_lines:
-                                    full_text = []
-                                    for para in data_cells[2].findall('.//w:p', ns):
-                                        para_text = []
-                                        for text_elem in para.findall('.//w:t', ns):
-                                            if text_elem.text:
-                                                para_text.append(text_elem.text)
-                                        if para_text:
-                                            full_text.append(''.join(para_text))
-                                    if full_text:
-                                        department_lines = [d.strip() for d in ' '.join(full_text).split() if d.strip()]
-                            
-                            # Извлекаем операции (колонка 3)
-                            operation_lines = []
-                            if len(data_cells) > 3:
-                                for para in data_cells[3].findall('.//w:p', ns):
-                                    para_text = []
-                                    for text_elem in para.findall('.//w:t', ns):
-                                        if text_elem.text:
-                                            para_text.append(text_elem.text)
-                                    if para_text:
-                                        line = ''.join(para_text).strip()
-                                        if line:
-                                            operation_lines.append(line)
-                                if not operation_lines:
-                                    full_text = []
-                                    for para in data_cells[3].findall('.//w:p', ns):
-                                        para_text = []
-                                        for text_elem in para.findall('.//w:t', ns):
-                                            if text_elem.text:
-                                                para_text.append(text_elem.text)
-                                        if para_text:
-                                            full_text.append(''.join(para_text))
-                                    if full_text:
-                                        operation_lines = [op.strip() for op in ' '.join(full_text).split() if op.strip()]
-                            
-                            # Создаем записи пациент-отделение-операция.
-                            max_len = max(len(patient_lines), len(department_lines), len(operation_lines))
-                            
-                            for idx in range(max_len):
-                                patient_raw = patient_lines[idx] if idx < len(patient_lines) else ""
-                                department = department_lines[idx] if idx < len(department_lines) else ""
-                                operation = operation_lines[idx] if idx < len(operation_lines) else ""
-                                
-                                if patient_raw:
-                                    birth_date = extract_birth_date(patient_raw)
-                                    patient = format_patient_short(strip_birth_date(patient_raw))
-                                    # Извлекаем фамилию пациента для сопоставления
-                                    patient_surname = patient.split()[0] if patient.split() else patient
-                                    planned_patients.add(patient_surname)
-                                    planned_details.append(
-                                        {
-                                            "patient": patient,
-                                            "birth_date": birth_date,
-                                            "department": normalize_spaces(department),
-                                            "operation": normalize_spaces(operation),
-                                        }
-                                    )
-                            
-                            break  # Нашли нужную дату, выходим из цикла
-                    i += 1
-                
-                return planned_patients, planned_details
-                
-    except Exception as exc:
-        LOGGER.warning("Cannot parse operation plan file: %s", exc)
-        return set(), []
-
-def get_plan_for_date_range(plan_dir, target_date):
-    """
-    Получает план для указанной даты
-    Возвращает: (planned_patients_set, planned_details_list)
-    """
-    return get_plan_data(plan_dir, target_date)
 
 def analyze_file(file_path, start_period, end_period):
     """Извлекает из DOCX операции пациента, дату и тип операции в заданном периоде."""
@@ -1166,28 +995,21 @@ def generate_operations_report(
     time_value: str = DEFAULT_TIME,
     dir1: str = DEFAULT_TARGET_DIR_1,
     dir2: str = DEFAULT_TARGET_DIR_2,
-    plan_dir: str = DEFAULT_PLAN_DIR,
     report_dir: str = DEFAULT_REPORT_DIR,
     end_period: datetime | None = None,
     planned_details_for_period: list | None = None,
     planned_details_today: list | None = None,
 ) -> dict:
-    """Сканирует протоколы и использует сохранённый backend-план при наличии."""
+    """Сканирует протоколы и использует только сохранённый backend-план."""
     end_period = end_period or datetime.now()
     start_period = end_period - timedelta(days=period)
-    if planned_details_for_period is None:
-        planned_patients, planned_details_for_period = get_plan_data(
-            plan_dir,
-            start_period,
-        )
-    else:
-        planned_patients = {
-            str(item.get("patient", "")).strip()
-            for item in planned_details_for_period
-            if isinstance(item, dict) and str(item.get("patient", "")).strip()
-        }
-    if planned_details_today is None:
-        _, planned_details_today = get_plan_data(plan_dir, end_period)
+    planned_details_for_period = planned_details_for_period or []
+    planned_details_today = planned_details_today or []
+    planned_patients = {
+        str(item.get("patient", "")).strip()
+        for item in planned_details_for_period
+        if isinstance(item, dict) and str(item.get("patient", "")).strip()
+    }
 
     all_operations = []
     for file_path in iter_operation_files([dir1, dir2]):
