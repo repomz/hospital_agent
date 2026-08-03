@@ -12,12 +12,10 @@ from pydicom.uid import UID
 from ..config import DICOM_IMPORT_TIMEOUT_SECONDS, AgentConfig, update_polling_state
 from ..http_client import ViewerClient
 from ..state import AgentState, save_state
-from .operation_reports import generate_operations_report
 
 
 LOGGER = logging.getLogger("hospital_agent.services.commands")
 
-GET_REPORT = "get_report"
 SYNC_STUDIES = "sync_studies"
 FIND_STUDY = "find_study"
 IMPORT_STUDY = "import_study"
@@ -74,10 +72,6 @@ def execute_user_command(
             state,
         )
         return {"sent": sent}
-    if command == GET_REPORT:
-        if viewer is None:
-            raise RuntimeError("get_report requires viewer")
-        return generate_report_from_payload(config, payload, viewer)
     if command in {XA_POLLING_ON, XA_POLLING_OFF, CT_POLLING_ON, CT_POLLING_OFF}:
         if state is None:
             raise RuntimeError(f"{command} requires state")
@@ -399,80 +393,3 @@ def build_modality_study_payload(
         "dicom_link": uploaded["dicom_link"],
         "dicom_files": uploaded["files"],
     }
-
-
-def generate_report_from_payload(
-    config: AgentConfig,
-    payload: dict[str, Any],
-    viewer: ViewerClient,
-) -> dict[str, Any]:
-    """Генерирует отчет за 1–4 суток и сохраняет JSON на backend."""
-    period = int(payload.get("period", 1))
-    if period < 1 or period > 4:
-        raise ValueError("get_report period must be between 1 and 4 days")
-    operations_dirs = config.study_polling.operations_dirs or []
-    dir1 = str(operations_dirs[0]) if operations_dirs else ""
-    dir2 = str(operations_dirs[1]) if len(operations_dirs) > 1 else ""
-    duty_end = _last_completed_duty_end(datetime.now())
-    duty_start = duty_end - timedelta(days=period)
-    previous_plan = _load_backend_plan_day(viewer, duty_start)
-    current_plan = _load_backend_plan_day(viewer, duty_end)
-    result = generate_operations_report(
-        period=period,
-        time_value="08:00",
-        dir1=dir1,
-        dir2=dir2,
-        report_dir=str(config.report_dir),
-        end_period=duty_end,
-        planned_details_for_period=previous_plan,
-        planned_details_today=current_plan,
-    )
-    report_payload = {
-        "agent_id": int(config.agent_id),
-        "report": result["report"],
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-    }
-    if not viewer.post_json("/reports", report_payload):
-        raise RuntimeError("backend rejected operations report")
-    return {
-        "report": result["report"],
-    }
-
-
-def _load_backend_plan_day(
-    viewer: ViewerClient,
-    target: datetime,
-) -> list[dict[str, str]]:
-    """Читает единственный допустимый план дня из backend."""
-    date_value = target.strftime("%Y-%m-%d")
-    payload = viewer.get_json(f"/operation-plan?week_start={date_value}")
-    if not isinstance(payload, dict):
-        raise RuntimeError("backend operation plan is unavailable")
-    if isinstance(payload.get("data"), dict):
-        payload = payload["data"]
-    days = payload.get("days")
-    if not isinstance(days, list):
-        raise RuntimeError("backend operation plan has an invalid format")
-    for day in days:
-        if not isinstance(day, dict) or day.get("date") != date_value:
-            continue
-        entries = day.get("entries")
-        if not isinstance(entries, list):
-            return []
-        return [
-            {
-                "patient": str(entry.get("patient") or ""),
-                "birth_date": "",
-                "department": str(entry.get("department") or ""),
-                "operation": str(entry.get("operation") or ""),
-            }
-            for entry in entries
-            if isinstance(entry, dict)
-        ]
-    return []
-
-
-def _last_completed_duty_end(now: datetime) -> datetime:
-    """Возвращает последнюю наступившую границу дежурства 08:00."""
-    duty_end = now.replace(hour=8, minute=0, second=0, microsecond=0)
-    return duty_end if now >= duty_end else duty_end - timedelta(days=1)

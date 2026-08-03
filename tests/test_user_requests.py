@@ -6,7 +6,6 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from hospital_agent.polling.user_requests import poll_user_requests, run_user_request
-from hospital_agent.services.commands import generate_report_from_payload
 from hospital_agent.state import AgentState, load_state
 
 
@@ -96,28 +95,6 @@ class UserRequestTests(unittest.TestCase):
             state = load_state(state_path)
 
         self.assertEqual(state.processed_user_request_ids, ["legacy-id"])
-
-    def test_generated_report_is_returned_as_command_result(self):
-        generated = {
-            "report": {"planned_count": 1},
-            "text_report_file": "report.txt",
-        }
-
-        config = SimpleNamespace(
-            study_polling=SimpleNamespace(operations_dirs=[Path("one"), Path("two")]),
-            report_dir=Path("reports"),
-            agent_id="2",
-        )
-        viewer = FakeViewer({"days": []})
-        with patch(
-            "hospital_agent.services.commands.generate_operations_report",
-            return_value=generated,
-        ):
-            result = generate_report_from_payload(config, {}, viewer)
-
-        self.assertEqual(result["report"], {"planned_count": 1})
-        self.assertNotIn("text_report_file", result)
-        self.assertEqual(viewer.posts[0][0], "/reports")
 
     def test_success_result_is_retried_without_reexecuting_command(self):
         viewer = FakeViewer(post_result=False)

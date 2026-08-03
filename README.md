@@ -101,9 +101,7 @@ pip install -e .
 - принимает вместе с CT/XA распространенные вторичные DICOM-объекты исследования:
   enhanced images, secondary capture, presentation states, waveforms, SR и PDF;
 - передает метаданные и трехдневные ссылки на `/ct_studies` или `/xa_studies`;
-- создает отчет в `report_time`, сохраняет TXT локально и отправляет JSON на `/reports`;
-  обычно отчёт охватывает предыдущее дежурство с 08:00 до 08:00, а по
-  понедельникам — период с пятницы 08:00 до понедельника 08:00;
+- не формирует отчёты: их строит backend из уже загруженных протоколов и плана;
 - удаляет DICOM из Yandex через три суток по локальной очереди в `state_file`.
 
 Пример `agent_config.json`:
@@ -117,8 +115,6 @@ pip install -e .
   "state_file": "logs/agent/state.json",
   "alive_polling_interval_min": 5,
   "pacs_config_path": "config.json",
-  "report_dir": "C:\\План Отчеты\\отчеты",
-  "report_time": "08:00",
   "user_requests_polling": {
     "state": true,
     "interval_min": 1
@@ -202,7 +198,6 @@ pythonw hospital_agent.py
   непрозрачному `protocol_ref`;
 - `sync_studies` — немедленная проверка всех `operations_dir` и отправка
   новых протоколов на `/studies`;
-- `get_report` — отчет за предыдущие 1–4 дежурства с границей 08:00;
 - `send_xa_to_pacs`, `send_ct_to_pacs` — повторная безопасная отправка
   выбранного DICOM-исследования в remote PACS;
 - `ct_polling_on`, `ct_polling_off`, `xa_polling_on`, `xa_polling_off` —

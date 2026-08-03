@@ -7,8 +7,6 @@
   "state_file": "logs/agent/state.json",
   "alive_polling_interval_min": 1,
   "pacs_config_path": "config.json",
-  "report_dir": "C:\\Users\\Angio_hir1\\Desktop\\План Отчеты\\отчеты",
-  "report_time": "08:00",
   "user_requests_polling": {
     "state": true,
     "interval_min": 1

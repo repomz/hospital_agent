@@ -30,8 +30,6 @@ class AgentConfig:
     log_dir: Path
     state_file: Path
     pacs_config_path: Path
-    report_dir: Path
-    report_time: str
     agent_id: str
     alive_polling_interval_min: float
     user_requests_polling: PollingConfig
@@ -115,14 +113,6 @@ def load_agent_config(path: str | Path = DEFAULT_CONFIG_PATH) -> AgentConfig:
             base_dir,
             raw_config.get("pacs_config_path", "config.json"),
         ),
-        report_dir=_resolve_local_path(
-            base_dir,
-            raw_config.get(
-                "report_dir",
-                r"C:\Users\Angio_hir1\Desktop\План Отчеты\отчеты",
-            ),
-        ),
-        report_time=str(raw_config.get("report_time", "08:00")),
         agent_id=agent_id,
         alive_polling_interval_min=float(raw_config.get("alive_polling_interval_min", 5)),
         user_requests_polling=_polling_config(raw_config, "user_requests_polling"),

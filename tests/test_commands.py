@@ -1,6 +1,5 @@
 import json
 import unittest
-from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -8,7 +7,6 @@ from unittest.mock import MagicMock, patch
 
 from hospital_agent.config import load_agent_config
 from hospital_agent.services.commands import (
-    _last_completed_duty_end,
     execute_user_command,
     find_dicom_studies,
     find_operation_protocols,
@@ -75,25 +73,13 @@ class CommandTests(unittest.TestCase):
             self.assertTrue(result["imported"])
             self.assertEqual(viewer.posts, [("/studies", protocol)])
 
-    def test_report_uses_last_completed_0800_boundary(self):
-        before_boundary = datetime(2026, 7, 27, 7, 59, 59)
-        after_boundary = datetime(2026, 7, 27, 11, 14)
-
-        self.assertEqual(
-            _last_completed_duty_end(before_boundary),
-            datetime(2026, 7, 26, 8, 0),
-        )
-        self.assertEqual(
-            _last_completed_duty_end(after_boundary),
-            datetime(2026, 7, 27, 8, 0),
-        )
-
     def test_old_command_names_are_not_supported(self):
         config = SimpleNamespace()
         for command in (
             "send_study_to_yandex",
             "send_dicom_to_mapdr",
             "generate_operations_report",
+            "get_report",
         ):
             with self.subTest(command=command):
                 self.assertIsNone(

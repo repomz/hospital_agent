@@ -3,7 +3,6 @@ import signal
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Callable
 
 from .config import AgentConfig, DEFAULT_REQUEST_TIMEOUT_SECONDS, PollingConfig
@@ -16,8 +15,7 @@ from .polling.pacs_studies import (
 )
 from .polling.protocols import poll_operation_protocols
 from .polling.user_requests import poll_user_requests
-from .services.commands import generate_report_from_payload
-from .state import AgentState, load_state, save_state
+from .state import AgentState, load_state
 
 
 LOGGER = logging.getLogger("hospital_agent")
@@ -133,42 +131,6 @@ def _schedule_runtimes(
         runtime.next_run_at = now_monotonic + max(runtime.config.interval_min * 60, 1)
 
 
-def _run_scheduled_report(
-    config: AgentConfig,
-    viewer: ViewerClient,
-    state: AgentState,
-) -> None:
-    """Один раз в день создает отчет за завершившееся в 08:00 дежурство."""
-    now = datetime.now()
-    try:
-        report_hour, report_minute = [
-            int(part) for part in config.report_time.split(":", 1)
-        ]
-    except (TypeError, ValueError):
-        LOGGER.warning("Invalid report_time=%r", config.report_time)
-        return
-    today = now.date().isoformat()
-    if state.last_report_date == today:
-        return
-    if (now.hour, now.minute) < (report_hour, report_minute):
-        return
-    period = _scheduled_report_period(now)
-    generate_report_from_payload(config, {"period": period}, viewer)
-    with state.lock:
-        state.last_report_date = today
-        save_state(config.state_file, state)
-    LOGGER.info(
-        "Duty report sent: duty_end=%s period_days=%s",
-        today,
-        period,
-    )
-
-
-def _scheduled_report_period(now: datetime) -> int:
-    """Возвращает три дня в понедельник и один день в остальные дни."""
-    return 3 if now.weekday() == 0 else 1
-
-
 def run_agent(config: AgentConfig) -> int:
     """Запускает постоянный многопоточный hospital agent."""
     global _running
@@ -179,7 +141,6 @@ def run_agent(config: AgentConfig) -> int:
     runtimes = _build_runtimes(config, viewer, state)
     alive_interval = max(config.alive_polling_interval_min * 60, 1)
     next_alive_at = 0.0
-    next_report_check_at = 0.0
 
     LOGGER.info(
         "Agent started: agent_id=%s description=%s viewer_url=%s",
@@ -187,8 +148,7 @@ def run_agent(config: AgentConfig) -> int:
         config.description,
         config.viewer_url,
     )
-    with ThreadPoolExecutor(max_workers=len(runtimes) + 1) as executor:
-        report_future: Future[object] | None = None
+    with ThreadPoolExecutor(max_workers=len(runtimes)) as executor:
         while _running:
             now_monotonic = time.monotonic()
             if now_monotonic >= next_alive_at:
@@ -201,15 +161,6 @@ def run_agent(config: AgentConfig) -> int:
 
             _schedule_runtimes(runtimes, executor, now_monotonic)
 
-            if report_future is not None and report_future.done():
-                try:
-                    report_future.result()
-                except Exception:
-                    LOGGER.exception("Scheduled report failed")
-                report_future = None
-            if report_future is None and now_monotonic >= next_report_check_at:
-                report_future = executor.submit(_run_scheduled_report, config, viewer, state)
-                next_report_check_at = now_monotonic + 60
             time.sleep(1)
 
     LOGGER.info("Agent stopped")
@@ -224,5 +175,4 @@ def run_agent_once(config: AgentConfig) -> int:
     for runtime in _build_runtimes(config, viewer, state):
         if runtime.config.state:
             runtime.run()
-    _run_scheduled_report(config, viewer, state)
     return 0
