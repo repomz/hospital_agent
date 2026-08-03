@@ -10,6 +10,7 @@ from hospital_agent.config import load_agent_config
 from hospital_agent.services.commands import (
     _last_completed_duty_end,
     execute_user_command,
+    find_dicom_studies,
     find_operation_protocols,
     import_operation_protocol,
     get_dicom_study,
@@ -28,6 +29,20 @@ class ViewerStub:
 
 
 class CommandTests(unittest.TestCase):
+    def test_find_dicom_studies_exposes_patient_name_for_frontend(self):
+        config = SimpleNamespace(pacs_config_path=Path("pacs.json"))
+        with patch(
+            "hospital_agent.support.dicom.load_pacs_config", return_value={}
+        ), patch("hospital_agent.services.pacs.PACSClient") as pacs_client:
+            pacs_client.return_value.find_studies.return_value = [
+                {"uid": "1.2.3", "name": "Иванов Иван"}
+            ]
+            result = find_dicom_studies(
+                config, {"patient": "Иванов", "period": "week"}, "XA"
+            )
+
+        self.assertEqual(result["studies"][0]["patient"], "Иванов Иван")
+
     def test_find_then_import_selected_protocol(self):
         with TemporaryDirectory() as directory:
             path = Path(directory) / "protocol.docx"

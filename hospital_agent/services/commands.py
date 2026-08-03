@@ -134,6 +134,12 @@ def find_dicom_studies(
         date_value=date_value,
         patient_name=patient,
     )
+    for study in studies:
+        # The frontend contract uses `patient`; retain `name` for compatibility
+        # with existing PACS consumers.
+        study["patient"] = str(
+            study.get("patient") or study.get("name") or ""
+        ).strip()
     return {
         "modality": modality,
         "patient": patient,
