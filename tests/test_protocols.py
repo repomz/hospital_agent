@@ -8,11 +8,14 @@ from unittest.mock import MagicMock, patch
 from hospital_agent.config import PollingConfig
 from hospital_agent.polling.protocols import (
     classify_study_type,
+    compact_operation_name,
+    department_from_record_number,
     iter_protocol_files,
     normalize_surgeon,
     parse_protocol,
     parse_study_id,
     poll_operation_protocols,
+    planned_recommendation,
 )
 from hospital_agent.state import AgentState
 
@@ -32,6 +35,9 @@ class ProtocolMappingTests(unittest.TestCase):
             "АГ балонная ангилопластика задней большеберцовой": "бап_периферии",
             "Тромбаспирация": "тромбаспирация",
             "ТА": "тромбаспирация",
+            "Тромбэкстракция из СМА": "тромбаспирация",
+            "Имплантация двухкамерного ЭКС Apollo DR": "ЭКС DR",
+            "Имплантация однокамерного ЭКС SR": "ЭКС SR",
         }
         for operation, expected in cases.items():
             with self.subTest(operation=operation):
@@ -43,9 +49,36 @@ class ProtocolMappingTests(unittest.TestCase):
 
     def test_unknown_operation_becomes_a_valid_study_type(self):
         self.assertEqual(
-            classify_study_type("Имплантация двухкамерного ЭКС Apollo DR"),
-            "имплантация двухкамерного экс apollo dr",
+            classify_study_type("Имплантация ресинхронизирующего устройства"),
+            "имплантация ресинхронизирующего устройства",
         )
+
+    def test_department_codes_are_short_backend_values(self):
+        cases = {
+            "42": "рсц", "12": "пит рсц", "44": "к/о 1", "45": "к/о 2",
+            "20": "гин/о", "24": "гной/х", "21": "прокт/х", "43": "невро/о",
+            "22": "нейро/х", "179": "диализ/о", "190": "реаб/о", "46": "пульм/о",
+            "25": "пласт/х", "26": "сос/х", "60": "платное", "49": "тер/о",
+            "29": "ур/о", "30": "хир", "33": "члх", "31": "тор/х",
+        }
+        for code, department in cases.items():
+            with self.subTest(code=code):
+                self.assertEqual(department_from_record_number(f"{code}-123"), department)
+
+    def test_operation_room_prefix_is_removed_before_shortening(self):
+        self.assertEqual(
+            compact_operation_name("Операционная № 2. Коронарография и ВСУЗИ"),
+            "КАГ и ВСУЗИ",
+        )
+
+    def test_only_planned_recommendation_is_kept(self):
+        self.assertEqual(
+            planned_recommendation(
+                "Контроль АД. В плановом порядке стентирование ПНА. Наблюдение."
+            ),
+            "В плановом порядке стентирование ПНА",
+        )
+        self.assertEqual(planned_recommendation("Контроль АД и диуреза"), "")
 
     def test_protocol_payload_contains_full_name_and_description(self):
         content = (
@@ -68,16 +101,13 @@ class ProtocolMappingTests(unittest.TestCase):
             payload = parse_protocol(Path("protocol.docx"), "1")
 
         self.assertIsNotNone(payload)
-        self.assertEqual(
-            payload["name_operation"],
-            "Коронарография. Локальная эндоваскулярная "
-            "трансартериальная тромбоаспирация из I ветки тупого края",
-        )
+        self.assertEqual(payload["patient"], "Иванов Иван Иванович")
+        self.assertEqual(payload["name_operation"], "КАГ. ТА I ВТК")
         self.assertEqual(
             payload["descr_operation"],
-            "ЗАКЛЮЧЕНИЕ:\nВыполнена ТА из I ВТК.\n\n"
-            "ХОД ОПЕРАЦИИ:\nДоступ: правой лучевой артерии, 6F.",
+            "Выполнена ТА из I ВТК.",
         )
+        self.assertEqual(payload["recommendation"], "")
 
     def test_protocol_accepts_new_operation_type_and_surgeon(self):
         content = (
@@ -98,7 +128,7 @@ class ProtocolMappingTests(unittest.TestCase):
         self.assertIsNotNone(payload)
         self.assertEqual(
             payload["study_type"],
-            "имплантация двухкамерного экс apollo dr",
+            "ЭКС DR",
         )
         self.assertEqual(payload["surgeon"], "петров")
 

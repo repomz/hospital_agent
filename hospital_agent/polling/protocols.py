@@ -11,10 +11,11 @@ from ..services.operation_reports import (
     parse_operation_description,
     parse_operation_from_content,
     parse_recommendation,
-    parse_patient_from_content,
+    parse_patient_full_from_content,
     read_docx_text,
     is_operation_docx_candidate,
     shorten_operation_description,
+    shorten_operation_name,
 )
 
 from ..config import AgentConfig, PollingConfig
@@ -124,8 +125,8 @@ def _normalize_text(value: str) -> str:
     return re.sub(r"\s+", " ", value.replace("\xa0", " ")).strip()
 
 
-def _protocol_sections(description: str, recommendation: str = "") -> str:
-    """Сжимает ход операции и выносит клиническое заключение на первое место."""
+def _protocol_conclusion(description: str) -> str:
+    """Возвращает только клиническое заключение без хода операции."""
     normalized = _normalize_text(description)
     marker = re.search(
         r"\b(?:в\s+ходе\s+исследования\s+выявлено|заключение)\s*:\s*",
@@ -152,14 +153,21 @@ def _protocol_sections(description: str, recommendation: str = "") -> str:
     conclusion = shorten_operation_description(raw_conclusion) or raw_conclusion
     if conclusion:
         conclusion = conclusion[:1].upper() + conclusion[1:]
-    course = shorten_operation_description(raw_course) or raw_course
-    sections = [f"ЗАКЛЮЧЕНИЕ:\n{conclusion or 'Не выделено в исходном протоколе.'}"]
-    if course and course.casefold() != conclusion.casefold():
-        sections.append(f"ХОД ОПЕРАЦИИ:\n{course}")
-    compact_recommendation = shorten_operation_description(recommendation)
-    if compact_recommendation:
-        sections.append(f"РЕКОМЕНДАЦИИ:\n{compact_recommendation}")
-    return "\n\n".join(sections)
+    return conclusion or "Заключение не выделено в исходном протоколе."
+
+
+def planned_recommendation(value: str) -> str:
+    """Оставляет только рекомендацию, содержащую назначение в плановом порядке."""
+    normalized = _normalize_text(value)
+    if not re.search(r"\bв\s+планов\w*\s+порядк\w*\b", normalized, re.IGNORECASE):
+        return ""
+    parts = re.split(r"(?<=[.!?;])\s+|\s+(?=\d+[.)]\s*)", normalized)
+    selected = [
+        part.strip(" -;.")
+        for part in parts
+        if re.search(r"\bв\s+планов\w*\s+порядк\w*\b", part, re.IGNORECASE)
+    ]
+    return ". ".join(filter(None, selected)).strip()
 
 
 def parse_study_id(content: str) -> str | None:
@@ -183,6 +191,17 @@ def parse_full_operation_name(content: str) -> str | None:
     return _normalize_text(match.group(1)).strip(" .") if match else None
 
 
+def compact_operation_name(value: str) -> str:
+    """Удаляет номер операционной и применяет клинические сокращения."""
+    value = re.sub(
+		r"\bОперационн\w*\s*(?:№\s*)?\d+\b\s*[.:-]*\s*",
+        "",
+        _normalize_text(value),
+        flags=re.IGNORECASE,
+    )
+    return shorten_operation_name(value).strip(" .")
+
+
 def parse_medical_record_number(content: str) -> str | None:
     """Извлекает номер карты стационарного больного."""
     match = re.search(
@@ -197,14 +216,32 @@ def department_from_record_number(record_number: str | None) -> str:
     """Вычисляет отделение по началу номера истории болезни."""
     if not record_number:
         return ""
-    if record_number.startswith("44"):
-        return "кардиология"
-    if record_number.startswith("42"):
-        return "рсц"
-    if record_number.startswith("26"):
-        return "сосудистая хирургия"
-    if record_number.startswith("179"):
-        return "неврология"
+    department_codes = {
+        "12": "пит рсц",
+        "20": "гин/о",
+        "21": "прокт/х",
+        "22": "нейро/х",
+        "24": "гной/х",
+        "25": "пласт/х",
+        "26": "сос/х",
+        "29": "ур/о",
+        "30": "хир",
+        "31": "тор/х",
+        "33": "члх",
+        "42": "рсц",
+        "43": "невро/о",
+        "44": "к/о 1",
+        "45": "к/о 2",
+        "46": "пульм/о",
+        "49": "тер/о",
+        "60": "платное",
+        "179": "диализ/о",
+        "190": "реаб/о",
+    }
+    for prefix in sorted(department_codes, key=len, reverse=True):
+        if record_number.startswith(prefix):
+            return department_codes[prefix]
+    LOGGER.warning("Unknown department code in medical record: %s", record_number)
     return ""
 
 
@@ -273,7 +310,11 @@ def classify_study_type(operation: str) -> str:
         )
     ) or re.search(r"\bнк\b", value) is not None
 
-    if "тромбаспир" in value or re.search(r"\bта\b", value):
+    if re.search(r"двухкамер|\bdr\b", value) and re.search(r"\bэкс\b|кардиостим", value):
+        return "ЭКС DR"
+    if re.search(r"однокамер|\bsr\b", value) and re.search(r"\bэкс\b|кардиостим", value):
+        return "ЭКС SR"
+    if re.search(r"тромб(?:о)?(?:аспирац|экстракц)|\bт[аэ]\b", value):
         return "тромбаспирация"
     if "стент" in value:
         if is_carotid:
@@ -305,9 +346,10 @@ def parse_protocol(path: Path, agent_id: str) -> dict[str, Any] | None:
         return None
 
     operation_datetime = parse_operation_datetime_flexible(content)
-    patient, age = parse_patient_from_content(content)
+    patient, age = parse_patient_full_from_content(content)
     operation = parse_operation_from_content(content)
     full_operation = parse_full_operation_name(content) or operation
+    compact_operation = compact_operation_name(full_operation)
     study_id = parse_study_id(content)
     required_fields = {
         "operation_datetime": operation_datetime,
@@ -336,9 +378,10 @@ def parse_protocol(path: Path, agent_id: str) -> dict[str, Any] | None:
         "patient": patient,
         "age": int(age) if str(age).isdigit() else 0,
         "department": department_from_record_number(record_number) or "не указано",
-        "name_operation": full_operation,
+        "name_operation": compact_operation,
         "study_type": study_type,
-        "descr_operation": _protocol_sections(description, recommendation),
+        "descr_operation": _protocol_conclusion(description),
+        "recommendation": planned_recommendation(recommendation),
         "time_beginning": _rfc3339(operation_datetime),
         "time_duration": parse_operation_duration_min(content),
         "surgeon": surgeon,

@@ -212,6 +212,15 @@ def parse_patient_from_content(content):
         return format_patient_short(fio), age
     return None, None
 
+
+def parse_patient_full_from_content(content):
+    """Извлекает полное ФИО и возраст без сокращения имени и отчества."""
+    pattern = r"Ф\.И\.О\. больного:\s*([^,]+),\s*(?:дата рождения[^,]+,\s*)?возраст\s*(\d+)"
+    match = re.search(pattern, content, flags=re.IGNORECASE)
+    if match:
+        return normalize_spaces(match.group(1).strip()), match.group(2).strip()
+    return None, None
+
 def _clean_medical_text(value):
     """Нормализует пробелы и пунктуацию медицинского текста."""
     value = normalize_spaces(value)
