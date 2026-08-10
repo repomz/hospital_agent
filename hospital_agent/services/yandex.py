@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -114,27 +115,42 @@ class YandexStorage:
         failed_files: list[str] = []
         uploaded_objects: list[dict[str, Any]] = []
 
-        files = [path for path in source.rglob("*") if path.is_file()]
-        for file_path in sorted(files, key=_dicom_sort_key):
+        files = sorted(
+            (path for path in source.rglob("*") if path.is_file()),
+            key=_dicom_sort_key,
+        )
+        try:
+            worker_count = max(1, int(os.getenv("YANDEX_UPLOAD_WORKERS", "6")))
+        except ValueError:
+            worker_count = 6
+
+        def upload(file_path: Path) -> tuple[Path, int, dict[str, Any] | None]:
             file_size = file_path.stat().st_size
             relative_name = file_path.relative_to(source).as_posix()
             object_name = f"{yandex_folder}/{relative_name}"
             if self.upload_dicom_with_retries(file_path, object_name, retry_attempts, retry_delay):
+                return file_path, file_size, {
+                    "name": relative_name,
+                    "size": file_size,
+                    "url": self.client.generate_presigned_url(
+                        "get_object",
+                        Params={"Bucket": self.bucket, "Key": object_name},
+                        ExpiresIn=int(timedelta(days=3).total_seconds()),
+                    ),
+                }
+            return file_path, file_size, None
+
+        # S3 clients are thread-safe. A bounded pool removes the per-object
+        # latency bottleneck without flooding the hospital uplink.
+        with ThreadPoolExecutor(max_workers=min(worker_count, max(1, len(files)))) as pool:
+            results = pool.map(upload, files)
+            for file_path, file_size, uploaded_object in results:
+                if uploaded_object is None:
+                    failed_files.append(str(file_path))
+                    continue
                 uploaded_files += 1
                 uploaded_bytes += file_size
-                uploaded_objects.append(
-                    {
-                        "name": relative_name,
-                        "size": file_size,
-                        "url": self.client.generate_presigned_url(
-                            "get_object",
-                            Params={"Bucket": self.bucket, "Key": object_name},
-                            ExpiresIn=int(timedelta(days=3).total_seconds()),
-                        ),
-                    }
-                )
-            else:
-                failed_files.append(str(file_path))
+                uploaded_objects.append(uploaded_object)
 
         return {
             "yandex_folder": yandex_folder,

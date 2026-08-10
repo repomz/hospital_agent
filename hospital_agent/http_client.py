@@ -4,6 +4,8 @@ from http.client import HTTPException
 from typing import Any
 from urllib.request import Request, urlopen
 
+from .support.tls import verified_ssl_context
+
 
 LOGGER = logging.getLogger("hospital_agent.http")
 
@@ -35,6 +37,7 @@ class ViewerClient:
             with urlopen(
                 request,
                 timeout=timeout_seconds or self.timeout_seconds,
+                context=verified_ssl_context(),
             ) as response:
                 ok = 200 <= response.status < 300
                 if not ok:
@@ -49,7 +52,11 @@ class ViewerClient:
         url = self.base_url + endpoint
         request = Request(url, method="GET", headers={"Accept": "application/json"})
         try:
-            with urlopen(request, timeout=self.timeout_seconds) as response:
+            with urlopen(
+                request,
+                timeout=self.timeout_seconds,
+                context=verified_ssl_context(),
+            ) as response:
                 if not (200 <= response.status < 300):
                     LOGGER.warning("GET %s returned HTTP %s", url, response.status)
                     return None

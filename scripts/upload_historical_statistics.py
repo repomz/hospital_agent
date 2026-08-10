@@ -15,7 +15,7 @@ from urllib.request import Request, urlopen
 # Настройте эти значения перед первым запуском на больничном компьютере.
 OPERATIONS_ARCHIVE_DIR = Path(r"C:\Viewer\operations")
 START_YEAR = 2020
-BACKEND_URL = "http://135.106.130.37:8080"
+BACKEND_URL = "https://135.106.130.37/api"
 REQUEST_TIMEOUT_SECONDS = 120
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -24,6 +24,7 @@ from hospital_agent.services.operation_reports import (  # noqa: E402
     analyze_operation_file,
     iter_operation_files,
 )
+from hospital_agent.support.tls import verified_ssl_context  # noqa: E402
 
 
 OPERATION_TYPES = (
@@ -136,7 +137,11 @@ def upload_statistics(payload: dict, backend_url: str) -> None:
         headers={"Content-Type": "application/json; charset=utf-8"},
     )
     try:
-        with urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
+        with urlopen(
+            request,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+            context=verified_ssl_context(),
+        ) as response:
             if not 200 <= response.status < 300:
                 raise RuntimeError(f"backend returned HTTP {response.status}")
     except HTTPError as error:

@@ -28,6 +28,7 @@ from hospital_agent.polling.protocols import (  # noqa: E402
     parse_protocol,
     protocol_identity,
 )
+from hospital_agent.support.tls import verified_ssl_context  # noqa: E402
 
 
 def request_json(path: str, *, method: str = "GET", payload: dict | None = None):
@@ -38,7 +39,11 @@ def request_json(path: str, *, method: str = "GET", payload: dict | None = None)
         method=method,
         headers={"Accept": "application/json", "Content-Type": "application/json"},
     )
-    with urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
+    with urlopen(
+        request,
+        timeout=REQUEST_TIMEOUT_SECONDS,
+        context=verified_ssl_context(),
+    ) as response:
         raw = response.read()
         return json.loads(raw.decode("utf-8")) if raw else None
 
