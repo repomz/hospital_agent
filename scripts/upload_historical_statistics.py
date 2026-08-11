@@ -28,20 +28,17 @@ from hospital_agent.support.tls import verified_ssl_context  # noqa: E402
 
 
 OPERATION_TYPES = (
+	"ВСУЗИ",
     "КАГ",
     "ЦАГ",
-    "СТЕНТ КОР",
-    "БАП КОР",
-    "ЭКС",
-    "СТЕНТ ВСА",
-    "ИШЕМИЧ ИНСУЛЬТ (ТА/ТЭ)",
-    "ЭМБОЛИЗАЦИЯ АНЕВРИЗМ",
-    "СТЕНТ ОПА/НПА",
-    "СТЕНТ ПОДКЛЮЧИ",
-    "СТЕНТ ПОЧКИ",
-    "БАП ГОЛЕНЬ",
-    "ЭМА",
-    "ДРУГИЕ",
+    "Стент кор",
+    "БАП кор",
+    "Стент ВСА",
+    "Стент в/к",
+    "Стент н/к",
+    "Аневризма",
+    "Инсульт",
+    "Голень",
 )
 
 
@@ -56,32 +53,30 @@ def classify_historical_operation(operation: str, description: str = "") -> str:
     has_bap = bool(re.search(r"\bбап\b|ангиопласт|баллон", value))
 
     if re.search(r"\bэма\b|эмболизац\w*\s+(?:маточ|миом)", value):
-        return "ЭМА"
-    if re.search(r"\bэкс\b|кардиостимулятор|электрокардиостимулятор", value):
-        return "ЭКС"
+        return ""
+    if re.search(r"всузи|внутрисосудист", value):
+        return "ВСУЗИ"
     if re.search(r"эмболизац\w*.{0,80}аневризм|аневризм\w*.{0,80}эмболизац", value):
-        return "ЭМБОЛИЗАЦИЯ АНЕВРИЗМ"
+        return "Аневризма"
     if re.search(r"тромб(?:о)?(?:аспирац|экстракц)|\bт[аэ]\b|механическ\w*\s+реканализац", value):
-        return "ИШЕМИЧ ИНСУЛЬТ (ТА/ТЭ)"
+        return "Инсульт"
     if has_stent and re.search(r"\bвса\b|внутренн\w*\s+сонн", value):
-        return "СТЕНТ ВСА"
-    if has_stent and re.search(r"\b[он]па\b|подвздош", value):
-        return "СТЕНТ ОПА/НПА"
-    if has_stent and re.search(r"подключ", value):
-        return "СТЕНТ ПОДКЛЮЧИ"
-    if has_stent and re.search(r"почеч", value):
-        return "СТЕНТ ПОЧКИ"
+        return "Стент ВСА"
+    if has_stent and re.search(r"верхн\w*\s+конеч|подключ", value):
+        return "Стент в/к"
+    if has_stent and re.search(r"нижн\w*\s+конеч|\b[он]па\b|подвздош|бедрен", value):
+        return "Стент н/к"
     if has_bap and re.search(r"голен|берцов|подколенн", value):
-        return "БАП ГОЛЕНЬ"
+        return "Голень"
     if has_stent and re.search(r"\bкаг\b|коронар|\bпна\b|\bпка\b|\bоа\b|стлка", value):
-        return "СТЕНТ КОР"
+        return "Стент кор"
     if has_bap and re.search(r"\bкаг\b|коронар|\bпна\b|\bпка\b|\bоа\b|стлка", value):
-        return "БАП КОР"
+        return "БАП кор"
     if re.search(r"\bцаг\b|церебраль\w*\s+ангиограф", value):
         return "ЦАГ"
     if re.search(r"\bкаг\b|коронарограф", value):
         return "КАГ"
-    return "ДРУГИЕ"
+    return ""
 
 
 def build_statistics(root: Path, start_year: int) -> tuple[dict, int, int]:
@@ -109,6 +104,9 @@ def build_statistics(root: Path, start_year: int) -> tuple[dict, int, int]:
         operation_type = classify_historical_operation(
             operation["operation"], operation.get("description", "")
         )
+        if not operation_type:
+            skipped += 1
+            continue
         counts[year][operation_type] += 1
         parsed += 1
 
@@ -118,6 +116,7 @@ def build_statistics(root: Path, start_year: int) -> tuple[dict, int, int]:
         row = {operation_type: counts[year].get(operation_type, 0) for operation_type in OPERATION_TYPES}
         years.append({"year": year, "counts": row, "total": sum(row.values())})
     payload = {
+        "schema_version": 2,
         "source": str(root),
         "start_year": start_year,
         "end_year": end_year,
