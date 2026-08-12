@@ -9,6 +9,77 @@ from ..state import AgentState, save_state
 
 
 LOGGER = logging.getLogger("hospital_agent.pacs")
+XA_STABILITY_DELAY = timedelta(minutes=20)
+
+
+def _positive_count(value: object) -> int | None:
+    try:
+        parsed = int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed > 0 else None
+
+
+def _xa_metadata_is_stable(
+    config: AgentConfig,
+    state: AgentState,
+    study: dict[str, object],
+    now: datetime,
+) -> bool:
+    """Requires unchanged PACS counts for 20 minutes before XA retrieval."""
+    study_uid = str(study.get("uid") or "")
+    series = _positive_count(study.get("series"))
+    instances = _positive_count(study.get("instances"))
+    if series is None or instances is None:
+        LOGGER.info(
+            "XA study waiting for complete PACS metadata: study_uid=%s series=%s instances=%s",
+            study_uid,
+            study.get("series"),
+            study.get("instances"),
+        )
+        return False
+
+    previous = state.pending_xa_studies.get(study_uid, {})
+    unchanged_since_raw = str(previous.get("unchanged_since") or "")
+    counts_changed = (
+        _positive_count(previous.get("series")) != series
+        or _positive_count(previous.get("instances")) != instances
+    )
+    try:
+        unchanged_since = datetime.fromisoformat(unchanged_since_raw)
+    except ValueError:
+        counts_changed = True
+        unchanged_since = now
+
+    if counts_changed:
+        with state.lock:
+            state.pending_xa_studies[study_uid] = {
+                "series": series,
+                "instances": instances,
+                "unchanged_since": now.isoformat(),
+            }
+            save_state(config.state_file, state)
+        LOGGER.info(
+            "XA study is still arriving; counts will be checked again: "
+            "study_uid=%s series=%s instances=%s retry_after_minutes=20",
+            study_uid,
+            series,
+            instances,
+        )
+        return False
+
+    stable_for = now - unchanged_since.astimezone(now.tzinfo)
+    if stable_for < XA_STABILITY_DELAY:
+        LOGGER.info(
+            "XA study stabilization pending: study_uid=%s series=%s instances=%s "
+            "remaining_seconds=%s",
+            study_uid,
+            series,
+            instances,
+            max(0, int((XA_STABILITY_DELAY - stable_for).total_seconds())),
+        )
+        return False
+    return True
 
 
 def _study_datetime(study: dict[str, object]) -> datetime | None:
@@ -97,6 +168,8 @@ def run_modality_polling(
             continue
         if study_datetime < local_start or study_datetime > local_now:
             continue
+        if modality == "XA" and not _xa_metadata_is_stable(config, state, study, now):
+            continue
         try:
             get_dicom_study(
                 config,
@@ -110,6 +183,7 @@ def run_modality_polling(
             LOGGER.warning("%s study %s failed: %s", modality, study_uid, exc)
             continue
         with state.lock:
+            state.pending_xa_studies.pop(study_uid, None)
             if study_uid not in processed:
                 processed.append(study_uid)
             del processed[:-2000]

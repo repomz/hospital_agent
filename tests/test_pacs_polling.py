@@ -84,9 +84,9 @@ class PACSPollingTests(unittest.TestCase):
 
     def test_xa_polling_sends_the_current_week(self):
         studies = [
-            {"uid": "1.2.0", "date": "20260726", "time": "120000"},
-            {"uid": "1.2.1", "date": "20260727", "time": "120000"},
-            {"uid": "1.2.2", "date": "20260729", "time": "120000"},
+            {"uid": "1.2.0", "date": "20260726", "time": "120000", "series": "4", "instances": "120"},
+            {"uid": "1.2.1", "date": "20260727", "time": "120000", "series": "4", "instances": "120"},
+            {"uid": "1.2.2", "date": "20260729", "time": "120000", "series": "6", "instances": "180"},
         ]
         pacs_client = MagicMock()
         pacs_client.find_studies.return_value = studies
@@ -96,7 +96,10 @@ class PACSPollingTests(unittest.TestCase):
                 state_file=Path(directory) / "state.json",
                 pacs_config_path=Path(directory) / "config.json",
             )
-            state = AgentState()
+            state = AgentState(pending_xa_studies={
+                "1.2.1": {"series": 4, "instances": 120, "unchanged_since": "2026-07-29T09:30:00+00:00"},
+                "1.2.2": {"series": 6, "instances": 180, "unchanged_since": "2026-07-29T09:30:00+00:00"},
+            })
             with patch(
                 "hospital_agent.polling.pacs_studies.datetime",
                 FrozenWednesdayDatetime,
@@ -126,11 +129,61 @@ class PACSPollingTests(unittest.TestCase):
             [call.args[1]["study_uid"] for call in get_study.call_args_list],
             ["1.2.1", "1.2.2"],
         )
+        self.assertEqual(state.pending_xa_studies, {})
+
+    def test_xa_polling_waits_for_unchanged_pacs_counts(self):
+        study = {
+            "uid": "1.2.7",
+            "date": "20260729",
+            "time": "120000",
+            "series": "5",
+            "instances": "140",
+        }
+        pacs_client = MagicMock()
+        pacs_client.find_studies.return_value = [study]
+
+        with TemporaryDirectory() as directory:
+            config = SimpleNamespace(
+                state_file=Path(directory) / "state.json",
+                pacs_config_path=Path(directory) / "config.json",
+            )
+            state = AgentState()
+            with patch(
+                "hospital_agent.polling.pacs_studies.datetime",
+                FrozenWednesdayDatetime,
+            ), patch(
+                "hospital_agent.services.pacs.PACSClient",
+                return_value=pacs_client,
+            ), patch(
+                "hospital_agent.support.dicom.load_pacs_config",
+                return_value={},
+            ), patch(
+                "hospital_agent.polling.pacs_studies.get_dicom_study",
+            ) as get_study:
+                first = run_modality_polling(
+                    config, SimpleNamespace(state=True), "XA", MagicMock(), state
+                )
+                # More instances arrived: the 20-minute stability window restarts.
+                state.pending_xa_studies["1.2.7"]["unchanged_since"] = (
+                    "2026-07-29T09:00:00+00:00"
+                )
+                study["instances"] = "160"
+                second = run_modality_polling(
+                    config, SimpleNamespace(state=True), "XA", MagicMock(), state
+                )
+
+        self.assertEqual((first, second), (0, 0))
+        get_study.assert_not_called()
+        self.assertEqual(state.pending_xa_studies["1.2.7"]["instances"], 160)
+        self.assertEqual(
+            state.pending_xa_studies["1.2.7"]["unchanged_since"],
+            "2026-07-29T10:00:00+00:00",
+        )
 
     def test_polling_does_not_start_another_study_after_shutdown_request(self):
         studies = [
-            {"uid": "1.2.1", "date": "20260727", "time": "120000"},
-            {"uid": "1.2.2", "date": "20260729", "time": "120000"},
+            {"uid": "1.2.1", "date": "20260727", "time": "120000", "series": "4", "instances": "120"},
+            {"uid": "1.2.2", "date": "20260729", "time": "120000", "series": "5", "instances": "150"},
         ]
         pacs_client = MagicMock()
         pacs_client.find_studies.return_value = studies
@@ -158,12 +211,16 @@ class PACSPollingTests(unittest.TestCase):
                 "hospital_agent.polling.pacs_studies.get_dicom_study",
                 side_effect=finish_first_study,
             ) as get_study:
+                state = AgentState(pending_xa_studies={
+                    "1.2.1": {"series": 4, "instances": 120, "unchanged_since": "2026-07-29T09:30:00+00:00"},
+                    "1.2.2": {"series": 5, "instances": 150, "unchanged_since": "2026-07-29T09:30:00+00:00"},
+                })
                 sent = run_modality_polling(
                     config,
                     SimpleNamespace(state=True),
                     "XA",
                     MagicMock(),
-                    AgentState(),
+                    state,
                     stop_requested=lambda: stopping,
                 )
 

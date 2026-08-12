@@ -20,6 +20,7 @@ class AgentState:
     pending_user_request_results: dict[str, dict[str, Any]] = field(default_factory=dict)
     polling_enabled_at: dict[str, str] = field(default_factory=dict)
     processed_modality_studies: dict[str, list[str]] = field(default_factory=dict)
+    pending_xa_studies: dict[str, dict[str, Any]] = field(default_factory=dict)
     yandex_cleanup: list[dict[str, Any]] = field(default_factory=list)
     last_report_date: str | None = None
     lock: Any = field(default_factory=RLock, repr=False, compare=False)
@@ -84,6 +85,11 @@ def load_state(path: Path) -> AgentState:
             for key, value in raw.get("processed_modality_studies", {}).items()
             if isinstance(value, list)
         },
+        pending_xa_studies={
+            str(key): value
+            for key, value in raw.get("pending_xa_studies", {}).items()
+            if isinstance(value, dict)
+        },
         yandex_cleanup=[
             item for item in raw.get("yandex_cleanup", []) if isinstance(item, dict)
         ],
@@ -103,6 +109,7 @@ def save_state(path: Path, state: AgentState) -> None:
             "pending_user_request_results": state.pending_user_request_results,
             "polling_enabled_at": state.polling_enabled_at,
             "processed_modality_studies": state.processed_modality_studies,
+            "pending_xa_studies": state.pending_xa_studies,
             "yandex_cleanup": state.yandex_cleanup,
             "last_report_date": state.last_report_date,
         }
