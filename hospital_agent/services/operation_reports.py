@@ -232,6 +232,12 @@ def _clean_medical_text(value):
 
 def _apply_operation_abbreviations(value):
     """Применяет безопасные общеупотребительные сокращения операций и сосудов."""
+    value = re.sub(
+        r"\bбаллонн\w*\s+(?:анги(?:о|л)?пласт\w*|БАП)\b",
+        "БАП",
+        value,
+        flags=re.IGNORECASE,
+    )
     replacements = (
         (r"\bкоронарошунтограф\w*", "КАГ+шунтогр"),
         (r"\bкоронарограф\w*", "КАГ"),
@@ -268,6 +274,7 @@ def _apply_operation_abbreviations(value):
     )
     for pattern, replacement in replacements:
         value = re.sub(pattern, replacement, value, flags=re.IGNORECASE)
+    value = re.sub(r"\bБАП(?:\s+БАП)+\b", "БАП", value, flags=re.IGNORECASE)
     return _clean_medical_text(value)
 
 

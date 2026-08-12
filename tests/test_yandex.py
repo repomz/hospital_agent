@@ -54,9 +54,13 @@ class YandexStorageTests(unittest.TestCase):
         uploaded_names = [
             call.args[1] for call in storage.upload_dicom_with_retries.call_args_list
         ]
-        self.assertEqual(
+        self.assertCountEqual(
             uploaded_names,
             ["study/early.dcm", "study/middle.dcm", "study/late.dcm"],
+        )
+        self.assertEqual(
+            [item["name"] for item in result["files"]],
+            ["early.dcm", "middle.dcm", "late.dcm"],
         )
         self.assertEqual(result["uploaded_files"], 3)
 
