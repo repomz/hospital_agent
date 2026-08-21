@@ -15,7 +15,7 @@ from urllib.request import Request, urlopen
 # Настройте эти значения перед первым запуском на больничном компьютере.
 OPERATIONS_ARCHIVE_DIR = Path(r"C:\Viewer\operations")
 START_YEAR = 2020
-BACKEND_URL = "https://135.106.130.37/api"
+BACKEND_URL = "https://135.106.195.161/api"
 REQUEST_TIMEOUT_SECONDS = 120
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))

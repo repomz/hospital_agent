@@ -15,7 +15,7 @@ from urllib.request import Request, urlopen
 # Укажите только каталог с операциями. Остальные параметры обычно менять не нужно.
 OPERATIONS_DIR = Path(r"C:\Users\Angio_hir1\Desktop\Операции 2026")
 YEAR = 2026
-BACKEND_URL = "https://135.106.130.37/api"
+BACKEND_URL = "https://135.106.195.161/api"
 BATCH_SIZE = 25
 PAUSE_BETWEEN_BATCHES_SECONDS = 1.0
 REQUEST_TIMEOUT_SECONDS = 30
