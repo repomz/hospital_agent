@@ -66,9 +66,9 @@ def protocol_identity(payload: dict[str, Any]) -> str:
     """Возвращает ключ одной операции независимо от имени и расположения DOCX."""
     raw = "|".join(
         (
-            str(payload.get("study_id") or "").strip(),
+            " ".join(str(payload.get("patient") or "").casefold().replace("ё", "е").split()),
             str(payload.get("time_beginning") or "").strip(),
-            str(payload.get("patient") or "").casefold().replace("ё", "е").strip(),
+            " ".join(str(payload.get("name_operation") or "").casefold().replace("ё", "е").split()),
         )
     )
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()

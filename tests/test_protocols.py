@@ -15,12 +15,27 @@ from hospital_agent.polling.protocols import (
     parse_protocol,
     parse_study_id,
     poll_operation_protocols,
+    protocol_identity,
     planned_recommendation,
 )
 from hospital_agent.state import AgentState
 
 
 class ProtocolMappingTests(unittest.TestCase):
+    def test_protocol_identity_ignores_shifted_operation_number(self):
+        original = {
+            "study_id": "1520",
+            "patient": "Иванов Иван Иванович",
+            "time_beginning": "2026-09-24T07:20:00Z",
+            "name_operation": "КАГ",
+        }
+        shifted_copy = {**original, "study_id": "1521"}
+
+        self.assertEqual(
+            protocol_identity(original),
+            protocol_identity(shifted_copy),
+        )
+
     def test_study_id_allows_spaces_inside_operation_label(self):
         self.assertEqual(parse_study_id("О перация: 559"), "559")
 
