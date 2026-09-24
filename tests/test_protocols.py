@@ -12,6 +12,9 @@ from hospital_agent.polling.protocols import (
     department_from_record_number,
     iter_protocol_files,
     normalize_surgeon,
+    parse_operation_datetime_flexible,
+    parse_operation_name_flexible,
+    parse_patient_flexible,
     parse_protocol,
     parse_study_id,
     poll_operation_protocols,
@@ -22,6 +25,36 @@ from hospital_agent.state import AgentState
 
 
 class ProtocolMappingTests(unittest.TestCase):
+    def test_archive_date_parser_accepts_legacy_date_and_time_range(self):
+        self.assertEqual(
+            parse_operation_datetime_flexible(
+                "Дата операции: 6.10.15 (10.05-10.55)"
+            ),
+            datetime(2015, 10, 6, 10, 5),
+        )
+
+    def test_archive_date_parser_accepts_date_without_time(self):
+        self.assertEqual(
+            parse_operation_datetime_flexible(
+                "Дата и время операции: 04.04.2022"
+            ),
+            datetime(2022, 4, 4, 8, 0),
+        )
+
+    def test_archive_patient_parser_accepts_fio_without_dots(self):
+        self.assertEqual(
+            parse_patient_flexible("ФИО: Еремин Виктор Львович 58 лет."),
+            ("Еремин Виктор Львович", "58"),
+        )
+
+    def test_archive_operation_parser_accepts_number_before_label(self):
+        self.assertEqual(
+            parse_operation_name_flexible(
+                "55 Операция: Эмболизация маточных артерий\nКарта стационарного"
+            ),
+            "Эмболизация маточных артерий",
+        )
+
     def test_protocol_identity_ignores_shifted_operation_number(self):
         original = {
             "study_id": "1520",

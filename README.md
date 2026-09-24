@@ -325,4 +325,26 @@ python scripts\upload_2026_protocols.py
 дубликаты, отправляет операции небольшими партиями и повторяет только временные
 сетевые ошибки.
 
+Для многолетнего ZIP-архива используется идемпотентный импортёр:
+
+```bash
+python scripts/import_operation_archive.py \
+  --archive archive_ready_v2.zip \
+  --index archive_operations.jsonl \
+  --report archive_import_report.json \
+  --build
+
+python scripts/import_operation_archive.py \
+  --archive archive_ready_v2.zip \
+  --index archive_operations.jsonl \
+  --report archive_import_report.json \
+  --upload --backend-url https://angio.su/api --workers 2
+```
+
+Первый этап проверяет каждый DOCX, конвертирует старые DOC при наличии
+`textutil` или LibreOffice, исключает точные повторы и формирует отчёт. Второй
+этап отправляет только нормализованные поля `/studies`; повторный запуск
+безопасен благодаря клиническому ключу операции на backend. Оригинальный ZIP и
+JSONL-индекс следует хранить на сервере отдельно от контейнеров.
+
 Для интеграционной проверки PACS/Yandex/MAPDR нужен доступ к больничной сети, корректные AE-настройки в `config.json`, backend viewer и установленные зависимости из `requirements.txt`.

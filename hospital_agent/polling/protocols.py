@@ -191,6 +191,55 @@ def parse_full_operation_name(content: str) -> str | None:
     return _normalize_text(match.group(1)).strip(" .") if match else None
 
 
+def parse_operation_name_flexible(content: str) -> str | None:
+    """Извлекает название из старых вариантов строки «Операция»."""
+    matches = re.finditer(
+        r"(?:^|\n)[^\n\r]*?\bОперация\s*(?:[:№]\s*)?(?:№?\s*\d+\s*)?"
+        r"([^\n\r]*?)(?=\s*Карта\s+стационарного|\n|$)",
+        content,
+        flags=re.IGNORECASE,
+    )
+    for match in matches:
+        value = re.sub(
+            r"^(?:экстренн\w*|планов\w*)\s+",
+            "",
+            _normalize_text(match.group(1)),
+            flags=re.IGNORECASE,
+        ).strip(" .:-")
+        if value and not re.fullmatch(r"(?:№?\s*)?\d+", value):
+            return value
+    return None
+
+
+def parse_patient_flexible(content: str) -> tuple[str | None, str | None]:
+    """Извлекает ФИО и возраст из ранних вариантов шаблона протокола."""
+    match = re.search(
+        r"Ф\s*\.?\s*И\s*\.?\s*О\s*\.?(?:\s+больного)?\s*:?\s*"
+        r"([^,\n\r]+?)\s*,?\s*(?:возраст\s*:?)?\s*(\d{1,3})\s*"
+        r"(?:лет|г(?:од(?:а|ов)?|\.)?)?\b",
+        content,
+        flags=re.IGNORECASE,
+    )
+    age = match.group(2) if match else None
+    if match:
+        raw_patient = match.group(1)
+    else:
+        without_age = re.search(
+            r"Ф\s*\.?\s*И\s*\.?\s*О\s*\.?(?:\s+больного)?\s*:?\s*"
+            r"(.+?)(?=\s*(?:Диагноз|Обезболивание|Длительность|Описание)\b|\n|$)",
+            content,
+            flags=re.IGNORECASE,
+        )
+        if not without_age:
+            return None, None
+        raw_patient = without_age.group(1)
+    patient = _normalize_text(raw_patient).strip(" ,.;:-")
+    patient = re.sub(r"\s*\(.*?\)\s*$", "", patient).strip()
+    if len(patient.split()) < 2:
+        return None, None
+    return patient, age
+
+
 def compact_operation_name(value: str) -> str:
     """Удаляет номер операционной и применяет клинические сокращения."""
     value = re.sub(
@@ -266,14 +315,31 @@ def parse_operation_datetime_flexible(content: str) -> datetime | None:
         return parsed
 
     match = re.search(
-        r"Дата\s+и\s+время\s+операции\s*:\s*(\d{2})\s*\.\s*(\d{2})\s*\.\s*(\d{4})\s+(\d{2}:\d{2})",
+        r"Дата(?:\s+и\s+время)?\s+операции\s*:\s*"
+        r"(\d{1,2})\s*[.,/-]\s*(\d{1,2})\s*[.,/-]\s*(\d{2,4})\.?"
+        r"(?:\s*\(?\s*(\d{1,4})\s*(?:[:.]\s*(\d{2}))?)?",
         content,
         flags=re.IGNORECASE,
     )
     if not match:
         return None
-    day, month, year, time_value = match.groups()
-    return datetime.strptime(f"{day}.{month}.{year} {time_value}", "%d.%m.%Y %H:%M")
+    raw_day, raw_month, raw_year, raw_hour, raw_minute = match.groups()
+    day, month, year = int(raw_day), int(raw_month), int(raw_year)
+    if year < 100:
+        year += 2000
+    hour, minute = 8, 0
+    if raw_hour:
+        digits = raw_hour
+        if raw_minute:
+            hour, minute = int(digits), int(raw_minute)
+        elif len(digits) in (3, 4):
+            hour, minute = int(digits[:-2]), int(digits[-2:])
+        else:
+            hour = int(digits)
+    try:
+        return datetime(year, month, day, hour, minute)
+    except ValueError:
+        return None
 
 
 def parse_surgeon(content: str) -> str:
@@ -338,7 +404,12 @@ def classify_study_type(operation: str) -> str:
     return value.rstrip(" .")
 
 
-def parse_protocol(path: Path, agent_id: str) -> dict[str, Any] | None:
+def parse_protocol(
+    path: Path,
+    agent_id: str,
+    *,
+    fallback_study_id: str = "",
+) -> dict[str, Any] | None:
     """Парсит DOCX-протокол операции в JSON StudyRequest для /studies."""
     content = read_docx_text(path)
     if not content:
@@ -347,10 +418,18 @@ def parse_protocol(path: Path, agent_id: str) -> dict[str, Any] | None:
 
     operation_datetime = parse_operation_datetime_flexible(content)
     patient, age = parse_patient_full_from_content(content)
-    operation = parse_operation_from_content(content)
+    if not patient:
+        patient, age = parse_patient_flexible(content)
+    operation = parse_operation_from_content(content) or parse_operation_name_flexible(content)
     full_operation = parse_full_operation_name(content) or operation
+    if not full_operation:
+        LOGGER.warning("Cannot parse operation name for %s", path)
+        return None
     compact_operation = compact_operation_name(full_operation)
-    study_id = parse_study_id(content)
+    if not compact_operation:
+        LOGGER.warning("Operation name became empty after normalization for %s", path)
+        return None
+    study_id = parse_study_id(content) or fallback_study_id
     required_fields = {
         "operation_datetime": operation_datetime,
         "patient": patient,
