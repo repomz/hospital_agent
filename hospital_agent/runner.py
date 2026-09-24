@@ -8,6 +8,7 @@ from typing import Callable
 from .config import AgentConfig, DEFAULT_REQUEST_TIMEOUT_SECONDS, PollingConfig
 from .http_client import ViewerClient
 from .polling.alive import send_alive
+from .polling.logs import upload_agent_logs
 from .polling.pacs_studies import (
     cleanup_expired_yandex_studies,
     disable_expired_polling,
@@ -91,6 +92,11 @@ def _build_runtimes(
             "yandex_cleanup",
             PollingConfig(state=True, interval_min=1),
             lambda: cleanup_expired_yandex_studies(config, state),
+        ),
+        PollingRuntime(
+            "agent_logs",
+            PollingConfig(state=True, interval_min=60),
+            lambda: upload_agent_logs(config, viewer, state),
         ),
     ]
 

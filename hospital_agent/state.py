@@ -23,6 +23,7 @@ class AgentState:
     pending_xa_studies: dict[str, dict[str, Any]] = field(default_factory=dict)
     yandex_cleanup: list[dict[str, Any]] = field(default_factory=list)
     last_report_date: str | None = None
+    uploaded_log_hours: dict[str, str] = field(default_factory=dict)
     lock: Any = field(default_factory=RLock, repr=False, compare=False)
 
 
@@ -94,6 +95,10 @@ def load_state(path: Path) -> AgentState:
             item for item in raw.get("yandex_cleanup", []) if isinstance(item, dict)
         ],
         last_report_date=raw.get("last_report_date"),
+        uploaded_log_hours={
+            str(key): str(value)
+            for key, value in raw.get("uploaded_log_hours", {}).items()
+        }
     )
 
 
@@ -112,6 +117,7 @@ def save_state(path: Path, state: AgentState) -> None:
             "pending_xa_studies": state.pending_xa_studies,
             "yandex_cleanup": state.yandex_cleanup,
             "last_report_date": state.last_report_date,
+            "uploaded_log_hours": state.uploaded_log_hours,
         }
         temporary_path = path.with_name(f".{path.name}.tmp")
         with temporary_path.open("w", encoding="utf-8") as file:
