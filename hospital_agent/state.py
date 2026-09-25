@@ -15,6 +15,7 @@ class AgentState:
 
     processed_protocols: dict[str, str] = field(default_factory=dict)
     processed_protocol_keys: list[str] = field(default_factory=list)
+    protocol_recheck_version: int = 0
     last_user_request_id: str | None = None
     processed_user_request_ids: list[str] = field(default_factory=list)
     pending_user_request_results: dict[str, dict[str, Any]] = field(default_factory=dict)
@@ -74,6 +75,7 @@ def load_state(path: Path) -> AgentState:
             for value in raw_processed_protocol_keys
             if value not in (None, "")
         ],
+        protocol_recheck_version=int(raw.get("protocol_recheck_version") or 0),
         last_user_request_id=last_user_request_id,
         processed_user_request_ids=processed_user_request_ids,
         pending_user_request_results=pending_user_request_results,
@@ -109,6 +111,7 @@ def save_state(path: Path, state: AgentState) -> None:
         payload = {
             "processed_protocols": state.processed_protocols,
             "processed_protocol_keys": state.processed_protocol_keys,
+            "protocol_recheck_version": state.protocol_recheck_version,
             "last_user_request_id": state.last_user_request_id,
             "processed_user_request_ids": state.processed_user_request_ids,
             "pending_user_request_results": state.pending_user_request_results,

@@ -26,6 +26,7 @@ from ..state import AgentState, save_state
 LOGGER = logging.getLogger("hospital_agent.protocols")
 STUDY_NAMESPACE = uuid.UUID("90153e75-8f87-4f1f-a874-6a0ef089cf68")
 MAX_PROCESSED_PROTOCOL_KEYS = 10000
+PROTOCOL_RECHECK_VERSION = 1
 
 
 def protocol_signature(path: Path) -> str:
@@ -478,6 +479,14 @@ def poll_operation_protocols(
     """Отправляет новые DOCX-протоколы текущей недели на viewer /studies."""
     sent_count = 0
     week_start, local_now = _current_week_window(now)
+    if state.protocol_recheck_version < PROTOCOL_RECHECK_VERSION:
+        # Старые версии помечали временно нечитабельный DOCX обработанным.
+        # Однократно снимаем подписи файлов: уже отправленные операции защитит
+        # identity/backend idempotency, а пропущенные будут восстановлены.
+        with state.lock:
+            state.processed_protocols.clear()
+            state.protocol_recheck_version = PROTOCOL_RECHECK_VERSION
+            save_state(config.state_file, state)
     known_protocol_keys = set(state.processed_protocol_keys)
     for path in iter_protocol_files(polling.operations_dirs or []):
         signature = protocol_signature(path)

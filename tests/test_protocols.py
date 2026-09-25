@@ -19,6 +19,7 @@ from hospital_agent.polling.protocols import (
     parse_study_id,
     poll_operation_protocols,
     protocol_identity,
+    protocol_signature,
     planned_recommendation,
 )
 from hospital_agent.state import AgentState
@@ -223,6 +224,7 @@ class ProtocolMappingTests(unittest.TestCase):
                 operations_dirs=[root],
             )
             state = AgentState()
+            state.processed_protocols[str(path.resolve())] = protocol_signature(path)
 
             with patch(
                 "hospital_agent.polling.protocols.parse_protocol",
@@ -233,6 +235,7 @@ class ProtocolMappingTests(unittest.TestCase):
 
             self.assertEqual(parser.call_count, 2)
             self.assertNotIn(str(path.resolve()), state.processed_protocols)
+            self.assertEqual(state.protocol_recheck_version, 1)
 
     def test_duplicate_operation_is_sent_only_once(self):
         with TemporaryDirectory() as directory:
