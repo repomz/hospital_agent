@@ -208,7 +208,7 @@ class ProtocolMappingTests(unittest.TestCase):
 
             self.assertEqual(iter_protocol_files([root]), [expected])
 
-    def test_rejected_unchanged_protocol_is_not_reparsed_each_poll(self):
+    def test_rejected_unchanged_protocol_is_retried_each_poll(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             path = root / "invalid.docx"
@@ -231,7 +231,8 @@ class ProtocolMappingTests(unittest.TestCase):
                 poll_operation_protocols(config, polling, object(), state)
                 poll_operation_protocols(config, polling, object(), state)
 
-            parser.assert_called_once_with(path, "2")
+            self.assertEqual(parser.call_count, 2)
+            self.assertNotIn(str(path.resolve()), state.processed_protocols)
 
     def test_duplicate_operation_is_sent_only_once(self):
         with TemporaryDirectory() as directory:

@@ -487,9 +487,10 @@ def poll_operation_protocols(
 
         payload = parse_protocol(path, config.agent_id)
         if payload is None:
-            # Не повторяем ошибку на каждом polling. Если файл исправят,
-            # размер или mtime изменится, подпись станет новой и он обработается снова.
-            _remember_protocol_signature(config, state, state_key, signature)
+            # DOCX может попасть в каталог, пока медицинская система ещё пишет
+            # файл. Не помечаем такую версию обработанной: следующий polling
+            # обязан повторить чтение, иначе готовый протокол может потеряться
+            # навсегда при неизменившихся размере/mtime на сетевой папке.
             continue
 
         operation_datetime = _operation_datetime_from_payload(payload, local_now.tzinfo)
@@ -498,7 +499,6 @@ def poll_operation_protocols(
                 "Protocol has no valid time_beginning and was not sent: %s",
                 path,
             )
-            _remember_protocol_signature(config, state, state_key, signature)
             continue
         if operation_datetime < week_start:
             _remember_protocol_signature(config, state, state_key, signature)
