@@ -26,7 +26,7 @@ from ..state import AgentState, save_state
 LOGGER = logging.getLogger("hospital_agent.protocols")
 STUDY_NAMESPACE = uuid.UUID("90153e75-8f87-4f1f-a874-6a0ef089cf68")
 MAX_PROCESSED_PROTOCOL_KEYS = 10000
-PROTOCOL_RECHECK_VERSION = 1
+PROTOCOL_RECHECK_HOURS = (14, 23)
 
 
 def protocol_signature(path: Path) -> str:
@@ -107,6 +107,14 @@ def _current_week_window(now: datetime | None = None) -> tuple[datetime, datetim
         microsecond=0,
     )
     return week_start, local_now
+
+
+def _protocol_recheck_slot(local_now: datetime) -> str | None:
+    """Возвращает последний наступивший контрольный слот текущего дня."""
+    for hour in reversed(PROTOCOL_RECHECK_HOURS):
+        if local_now.hour >= hour:
+            return f"{local_now.date().isoformat()}T{hour:02d}:00"
+    return None
 
 
 def _remember_protocol_signature(
@@ -479,27 +487,26 @@ def poll_operation_protocols(
     """Отправляет новые DOCX-протоколы текущей недели на viewer /studies."""
     sent_count = 0
     week_start, local_now = _current_week_window(now)
-    if state.protocol_recheck_version < PROTOCOL_RECHECK_VERSION:
-        # Старые версии помечали временно нечитабельный DOCX обработанным.
-        # Однократно снимаем подписи файлов: уже отправленные операции защитит
-        # identity/backend idempotency, а пропущенные будут восстановлены.
-        with state.lock:
-            state.processed_protocols.clear()
-            state.protocol_recheck_version = PROTOCOL_RECHECK_VERSION
-            save_state(config.state_file, state)
+    recheck_slot = _protocol_recheck_slot(local_now)
+    force_recheck = bool(
+        recheck_slot and recheck_slot != state.last_protocol_recheck_slot
+    )
     known_protocol_keys = set(state.processed_protocol_keys)
     for path in iter_protocol_files(polling.operations_dirs or []):
         signature = protocol_signature(path)
         state_key = str(path.resolve())
-        if state.processed_protocols.get(state_key) == signature:
+        previous_signature = state.processed_protocols.get(state_key)
+        signature_changed = bool(
+            previous_signature and previous_signature != signature
+        )
+        if previous_signature == signature and not force_recheck:
             continue
 
         payload = parse_protocol(path, config.agent_id)
         if payload is None:
-            # DOCX может попасть в каталог, пока медицинская система ещё пишет
-            # файл. Не помечаем такую версию обработанной: следующий polling
-            # обязан повторить чтение, иначе готовый протокол может потеряться
-            # навсегда при неизменившихся размере/mtime на сетевой папке.
+            # Обычный polling не перечитывает неизменный ошибочный файл каждую
+            # минуту. Контрольные проходы в 14:00 и 23:00 попробуют его снова.
+            _remember_protocol_signature(config, state, state_key, signature)
             continue
 
         operation_datetime = _operation_datetime_from_payload(payload, local_now.tzinfo)
@@ -508,8 +515,9 @@ def poll_operation_protocols(
                 "Protocol has no valid time_beginning and was not sent: %s",
                 path,
             )
+            _remember_protocol_signature(config, state, state_key, signature)
             continue
-        if operation_datetime < week_start:
+        if operation_datetime < week_start and not signature_changed:
             _remember_protocol_signature(config, state, state_key, signature)
             LOGGER.info(
                 "Protocol before current week skipped: operation_time=%s file=%s",
@@ -526,15 +534,16 @@ def poll_operation_protocols(
             continue
 
         identity = protocol_identity(payload)
-        if identity in known_protocol_keys:
+        if identity in known_protocol_keys and not signature_changed:
             _remember_protocol_signature(config, state, state_key, signature)
             continue
 
         if viewer.post_json("/studies", payload):
             with state.lock:
                 state.processed_protocols[state_key] = signature
-                known_protocol_keys.add(identity)
-                state.processed_protocol_keys.append(identity)
+                if identity not in known_protocol_keys:
+                    known_protocol_keys.add(identity)
+                    state.processed_protocol_keys.append(identity)
                 state.processed_protocol_keys = state.processed_protocol_keys[
                     -MAX_PROCESSED_PROTOCOL_KEYS:
                 ]
@@ -545,4 +554,8 @@ def poll_operation_protocols(
                 payload["study_id"],
                 path,
             )
+    if force_recheck:
+        with state.lock:
+            state.last_protocol_recheck_slot = recheck_slot
+            save_state(config.state_file, state)
     return sent_count

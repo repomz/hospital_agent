@@ -209,7 +209,7 @@ class ProtocolMappingTests(unittest.TestCase):
 
             self.assertEqual(iter_protocol_files([root]), [expected])
 
-    def test_rejected_unchanged_protocol_is_retried_each_poll(self):
+    def test_rejected_protocol_is_rechecked_at_14_and_23(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             path = root / "invalid.docx"
@@ -230,12 +230,54 @@ class ProtocolMappingTests(unittest.TestCase):
                 "hospital_agent.polling.protocols.parse_protocol",
                 return_value=None,
             ) as parser:
-                poll_operation_protocols(config, polling, object(), state)
-                poll_operation_protocols(config, polling, object(), state)
+                local_tz = timezone(timedelta(hours=7))
+                for hour, minute in ((13, 59), (14, 0), (14, 30), (23, 0), (23, 30)):
+                    poll_operation_protocols(
+                        config,
+                        polling,
+                        object(),
+                        state,
+                        now=datetime(2026, 9, 25, hour, minute, tzinfo=local_tz),
+                    )
 
             self.assertEqual(parser.call_count, 2)
-            self.assertNotIn(str(path.resolve()), state.processed_protocols)
-            self.assertEqual(state.protocol_recheck_version, 1)
+            self.assertIn(str(path.resolve()), state.processed_protocols)
+            self.assertEqual(state.last_protocol_recheck_slot, "2026-09-25T23:00")
+
+    def test_changed_old_protocol_is_sent_for_backend_update(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "changed.docx"
+            path.write_bytes(b"changed")
+            config = SimpleNamespace(agent_id="2", state_file=root / "state.json")
+            polling = PollingConfig(state=True, interval_min=1, operations_dirs=[root])
+            payload = {
+                "study_id": "217",
+                "time_beginning": "2026-01-10T04:05:00Z",
+                "patient": "Иванова Нина Геннадьевна",
+                "name_operation": "КАГ",
+            }
+            identity = protocol_identity(payload)
+            state = AgentState(
+                processed_protocols={str(path.resolve()): "old-signature"},
+                processed_protocol_keys=[identity],
+            )
+            viewer = SimpleNamespace(post_json=MagicMock(return_value=True))
+
+            with patch(
+                "hospital_agent.polling.protocols.parse_protocol",
+                return_value=payload,
+            ):
+                sent = poll_operation_protocols(
+                    config,
+                    polling,
+                    viewer,
+                    state,
+                    now=datetime(2026, 9, 25, 12, 0, tzinfo=timezone.utc),
+                )
+
+            self.assertEqual(sent, 1)
+            viewer.post_json.assert_called_once_with("/studies", payload)
 
     def test_duplicate_operation_is_sent_only_once(self):
         with TemporaryDirectory() as directory:
