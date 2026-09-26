@@ -8,7 +8,6 @@ from ..services.commands import execute_user_command
 from ..state import MAX_PROCESSED_USER_REQUEST_IDS, AgentState, save_state
 from ..support.backend_requests import command_name, iter_user_requests, request_id
 
-
 LOGGER = logging.getLogger("hospital_agent.user_requests")
 
 

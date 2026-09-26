@@ -10,8 +10,8 @@ from hospital_agent.services.operation_reports import (
     iter_operation_files,
     operation_summary,
     parse_birth_date_from_content,
-    parse_operation_description,
     parse_operation_datetime,
+    parse_operation_description,
     parse_operation_from_content,
     parse_recommendation,
     previous_operation_summary,
@@ -59,12 +59,8 @@ class OperationReportParsingTests(unittest.TestCase):
 
     def test_operation_datetime_allows_spaces_inside_digits(self):
         cases = {
-            "Дата и время операции: 25.04.2026 14:4 0": datetime(
-                2026, 4, 25, 14, 40
-            ),
-            "Дата и время операции: 1 9 .02.2026 13 : 00": datetime(
-                2026, 2, 19, 13, 0
-            ),
+            "Дата и время операции: 25.04.2026 14:4 0": datetime(2026, 4, 25, 14, 40),
+            "Дата и время операции: 1 9 .02.2026 13 : 00": datetime(2026, 2, 19, 13, 0),
         }
         for content, expected in cases.items():
             with self.subTest(content=content):
@@ -110,8 +106,7 @@ class OperationReportParsingTests(unittest.TestCase):
 
     def test_full_recommendation_label_is_supported(self):
         content = (
-            "Рекомендовано: наблюдение дежурного врача "
-            "Расходные материалы Йодсодержащий контраст"
+            "Рекомендовано: наблюдение дежурного врача Расходные материалы Йодсодержащий контраст"
         )
 
         self.assertEqual(parse_recommendation(content), "наблюдение дежурного врача")
@@ -157,8 +152,7 @@ class OperationReportParsingTests(unittest.TestCase):
 
         self.assertEqual(
             shorten_operation_description(description),
-            "Доступ: правой бедренной артерии, 6Fr. "
-            "Проведена АГ артерий нижней конечности.",
+            "Доступ: правой бедренной артерии, 6Fr. Проведена АГ артерий нижней конечности.",
         )
 
     def test_description_stops_at_outcome_without_intermediate_space(self):

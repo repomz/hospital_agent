@@ -7,7 +7,6 @@ from ..http_client import ViewerClient
 from ..services.commands import get_dicom_study
 from ..state import AgentState, save_state
 
-
 LOGGER = logging.getLogger("hospital_agent.pacs")
 XA_STABILITY_DELAY = timedelta(minutes=20)
 

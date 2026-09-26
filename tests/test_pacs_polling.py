@@ -18,6 +18,7 @@ class FrozenDatetime(datetime):
         value = cls(2026, 7, 27, 10, 0, tzinfo=timezone.utc)
         return value if tz is not None else value.replace(tzinfo=None)
 
+
 class FrozenWednesdayDatetime(datetime):
     @classmethod
     def now(cls, tz=None):
@@ -58,18 +59,23 @@ class PACSPollingTests(unittest.TestCase):
                     "CT": "2026-07-27T09:00:00+00:00",
                 }
             )
-            with patch(
-                "hospital_agent.polling.pacs_studies.datetime",
-                FrozenDatetime,
-            ), patch(
-                "hospital_agent.services.pacs.PACSClient",
-                return_value=pacs_client,
-            ), patch(
-                "hospital_agent.support.dicom.load_pacs_config",
-                return_value={},
-            ), patch(
-                "hospital_agent.polling.pacs_studies.get_dicom_study",
-            ) as get_study:
+            with (
+                patch(
+                    "hospital_agent.polling.pacs_studies.datetime",
+                    FrozenDatetime,
+                ),
+                patch(
+                    "hospital_agent.services.pacs.PACSClient",
+                    return_value=pacs_client,
+                ),
+                patch(
+                    "hospital_agent.support.dicom.load_pacs_config",
+                    return_value={},
+                ),
+                patch(
+                    "hospital_agent.polling.pacs_studies.get_dicom_study",
+                ) as get_study,
+            ):
                 sent = run_modality_polling(
                     config,
                     polling,
@@ -84,9 +90,27 @@ class PACSPollingTests(unittest.TestCase):
 
     def test_xa_polling_sends_the_current_week(self):
         studies = [
-            {"uid": "1.2.0", "date": "20260726", "time": "120000", "series": "4", "instances": "120"},
-            {"uid": "1.2.1", "date": "20260727", "time": "120000", "series": "4", "instances": "120"},
-            {"uid": "1.2.2", "date": "20260729", "time": "120000", "series": "6", "instances": "180"},
+            {
+                "uid": "1.2.0",
+                "date": "20260726",
+                "time": "120000",
+                "series": "4",
+                "instances": "120",
+            },
+            {
+                "uid": "1.2.1",
+                "date": "20260727",
+                "time": "120000",
+                "series": "4",
+                "instances": "120",
+            },
+            {
+                "uid": "1.2.2",
+                "date": "20260729",
+                "time": "120000",
+                "series": "6",
+                "instances": "180",
+            },
         ]
         pacs_client = MagicMock()
         pacs_client.find_studies.return_value = studies
@@ -96,22 +120,37 @@ class PACSPollingTests(unittest.TestCase):
                 state_file=Path(directory) / "state.json",
                 pacs_config_path=Path(directory) / "config.json",
             )
-            state = AgentState(pending_xa_studies={
-                "1.2.1": {"series": 4, "instances": 120, "unchanged_since": "2026-07-29T09:30:00+00:00"},
-                "1.2.2": {"series": 6, "instances": 180, "unchanged_since": "2026-07-29T09:30:00+00:00"},
-            })
-            with patch(
-                "hospital_agent.polling.pacs_studies.datetime",
-                FrozenWednesdayDatetime,
-            ), patch(
-                "hospital_agent.services.pacs.PACSClient",
-                return_value=pacs_client,
-            ), patch(
-                "hospital_agent.support.dicom.load_pacs_config",
-                return_value={},
-            ), patch(
-                "hospital_agent.polling.pacs_studies.get_dicom_study",
-            ) as get_study:
+            state = AgentState(
+                pending_xa_studies={
+                    "1.2.1": {
+                        "series": 4,
+                        "instances": 120,
+                        "unchanged_since": "2026-07-29T09:30:00+00:00",
+                    },
+                    "1.2.2": {
+                        "series": 6,
+                        "instances": 180,
+                        "unchanged_since": "2026-07-29T09:30:00+00:00",
+                    },
+                }
+            )
+            with (
+                patch(
+                    "hospital_agent.polling.pacs_studies.datetime",
+                    FrozenWednesdayDatetime,
+                ),
+                patch(
+                    "hospital_agent.services.pacs.PACSClient",
+                    return_value=pacs_client,
+                ),
+                patch(
+                    "hospital_agent.support.dicom.load_pacs_config",
+                    return_value={},
+                ),
+                patch(
+                    "hospital_agent.polling.pacs_studies.get_dicom_study",
+                ) as get_study,
+            ):
                 sent = run_modality_polling(
                     config,
                     SimpleNamespace(state=True),
@@ -148,25 +187,28 @@ class PACSPollingTests(unittest.TestCase):
                 pacs_config_path=Path(directory) / "config.json",
             )
             state = AgentState()
-            with patch(
-                "hospital_agent.polling.pacs_studies.datetime",
-                FrozenWednesdayDatetime,
-            ), patch(
-                "hospital_agent.services.pacs.PACSClient",
-                return_value=pacs_client,
-            ), patch(
-                "hospital_agent.support.dicom.load_pacs_config",
-                return_value={},
-            ), patch(
-                "hospital_agent.polling.pacs_studies.get_dicom_study",
-            ) as get_study:
+            with (
+                patch(
+                    "hospital_agent.polling.pacs_studies.datetime",
+                    FrozenWednesdayDatetime,
+                ),
+                patch(
+                    "hospital_agent.services.pacs.PACSClient",
+                    return_value=pacs_client,
+                ),
+                patch(
+                    "hospital_agent.support.dicom.load_pacs_config",
+                    return_value={},
+                ),
+                patch(
+                    "hospital_agent.polling.pacs_studies.get_dicom_study",
+                ) as get_study,
+            ):
                 first = run_modality_polling(
                     config, SimpleNamespace(state=True), "XA", MagicMock(), state
                 )
                 # More instances arrived: the 20-minute stability window restarts.
-                state.pending_xa_studies["1.2.7"]["unchanged_since"] = (
-                    "2026-07-29T09:00:00+00:00"
-                )
+                state.pending_xa_studies["1.2.7"]["unchanged_since"] = "2026-07-29T09:00:00+00:00"
                 study["instances"] = "160"
                 second = run_modality_polling(
                     config, SimpleNamespace(state=True), "XA", MagicMock(), state
@@ -182,8 +224,20 @@ class PACSPollingTests(unittest.TestCase):
 
     def test_polling_does_not_start_another_study_after_shutdown_request(self):
         studies = [
-            {"uid": "1.2.1", "date": "20260727", "time": "120000", "series": "4", "instances": "120"},
-            {"uid": "1.2.2", "date": "20260729", "time": "120000", "series": "5", "instances": "150"},
+            {
+                "uid": "1.2.1",
+                "date": "20260727",
+                "time": "120000",
+                "series": "4",
+                "instances": "120",
+            },
+            {
+                "uid": "1.2.2",
+                "date": "20260729",
+                "time": "120000",
+                "series": "5",
+                "instances": "150",
+            },
         ]
         pacs_client = MagicMock()
         pacs_client.find_studies.return_value = studies
@@ -198,23 +252,38 @@ class PACSPollingTests(unittest.TestCase):
                 state_file=Path(directory) / "state.json",
                 pacs_config_path=Path(directory) / "config.json",
             )
-            with patch(
-                "hospital_agent.polling.pacs_studies.datetime",
-                FrozenWednesdayDatetime,
-            ), patch(
-                "hospital_agent.services.pacs.PACSClient",
-                return_value=pacs_client,
-            ), patch(
-                "hospital_agent.support.dicom.load_pacs_config",
-                return_value={},
-            ), patch(
-                "hospital_agent.polling.pacs_studies.get_dicom_study",
-                side_effect=finish_first_study,
-            ) as get_study:
-                state = AgentState(pending_xa_studies={
-                    "1.2.1": {"series": 4, "instances": 120, "unchanged_since": "2026-07-29T09:30:00+00:00"},
-                    "1.2.2": {"series": 5, "instances": 150, "unchanged_since": "2026-07-29T09:30:00+00:00"},
-                })
+            with (
+                patch(
+                    "hospital_agent.polling.pacs_studies.datetime",
+                    FrozenWednesdayDatetime,
+                ),
+                patch(
+                    "hospital_agent.services.pacs.PACSClient",
+                    return_value=pacs_client,
+                ),
+                patch(
+                    "hospital_agent.support.dicom.load_pacs_config",
+                    return_value={},
+                ),
+                patch(
+                    "hospital_agent.polling.pacs_studies.get_dicom_study",
+                    side_effect=finish_first_study,
+                ) as get_study,
+            ):
+                state = AgentState(
+                    pending_xa_studies={
+                        "1.2.1": {
+                            "series": 4,
+                            "instances": 120,
+                            "unchanged_since": "2026-07-29T09:30:00+00:00",
+                        },
+                        "1.2.2": {
+                            "series": 5,
+                            "instances": 150,
+                            "unchanged_since": "2026-07-29T09:30:00+00:00",
+                        },
+                    }
+                )
                 sent = run_modality_polling(
                     config,
                     SimpleNamespace(state=True),
@@ -234,15 +303,16 @@ class PACSPollingTests(unittest.TestCase):
                 ct_polling=SimpleNamespace(state=False),
                 xa_polling=SimpleNamespace(state=True),
             )
-            state = AgentState(
-                polling_enabled_at={"XA": "2026-07-26T09:00:00+00:00"}
-            )
-            with patch(
-                "hospital_agent.polling.pacs_studies.datetime",
-                FrozenWednesdayDatetime,
-            ), patch(
-                "hospital_agent.polling.pacs_studies.update_polling_state",
-            ) as update:
+            state = AgentState(polling_enabled_at={"XA": "2026-07-26T09:00:00+00:00"})
+            with (
+                patch(
+                    "hospital_agent.polling.pacs_studies.datetime",
+                    FrozenWednesdayDatetime,
+                ),
+                patch(
+                    "hospital_agent.polling.pacs_studies.update_polling_state",
+                ) as update,
+            ):
                 disabled = disable_expired_polling(config, state)
 
         self.assertEqual(disabled, 0)

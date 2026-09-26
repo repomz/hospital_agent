@@ -5,7 +5,6 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
-
 MAX_PROCESSED_USER_REQUEST_IDS = 1000
 
 
@@ -46,9 +45,7 @@ def load_state(path: Path) -> AgentState:
     if not isinstance(raw_processed_user_request_ids, list):
         raw_processed_user_request_ids = []
     processed_user_request_ids = [
-        str(value)
-        for value in raw_processed_user_request_ids
-        if value not in (None, "")
+        str(value) for value in raw_processed_user_request_ids if value not in (None, "")
     ][-MAX_PROCESSED_USER_REQUEST_IDS:]
     # Совместимость со state-файлом, записанным старыми версиями агента.
     if last_user_request_id and str(last_user_request_id) not in processed_user_request_ids:
@@ -58,9 +55,7 @@ def load_state(path: Path) -> AgentState:
     if not isinstance(raw_pending_results, dict):
         raw_pending_results = {}
     pending_user_request_results = {
-        str(key): value
-        for key, value in raw_pending_results.items()
-        if isinstance(value, dict)
+        str(key): value for key, value in raw_pending_results.items() if isinstance(value, dict)
     }
     raw_processed_protocol_keys = raw.get("processed_protocol_keys", [])
     if not isinstance(raw_processed_protocol_keys, list):
@@ -71,9 +66,7 @@ def load_state(path: Path) -> AgentState:
             str(key): str(value) for key, value in raw.get("processed_protocols", {}).items()
         },
         processed_protocol_keys=[
-            str(value)
-            for value in raw_processed_protocol_keys
-            if value not in (None, "")
+            str(value) for value in raw_processed_protocol_keys if value not in (None, "")
         ],
         last_protocol_recheck_slot=(
             str(raw["last_protocol_recheck_slot"])
@@ -84,8 +77,7 @@ def load_state(path: Path) -> AgentState:
         processed_user_request_ids=processed_user_request_ids,
         pending_user_request_results=pending_user_request_results,
         polling_enabled_at={
-            str(key): str(value)
-            for key, value in raw.get("polling_enabled_at", {}).items()
+            str(key): str(value) for key, value in raw.get("polling_enabled_at", {}).items()
         },
         processed_modality_studies={
             str(key): [str(item) for item in value]
@@ -97,14 +89,11 @@ def load_state(path: Path) -> AgentState:
             for key, value in raw.get("pending_xa_studies", {}).items()
             if isinstance(value, dict)
         },
-        yandex_cleanup=[
-            item for item in raw.get("yandex_cleanup", []) if isinstance(item, dict)
-        ],
+        yandex_cleanup=[item for item in raw.get("yandex_cleanup", []) if isinstance(item, dict)],
         last_report_date=raw.get("last_report_date"),
         uploaded_log_hours={
-            str(key): str(value)
-            for key, value in raw.get("uploaded_log_hours", {}).items()
-        }
+            str(key): str(value) for key, value in raw.get("uploaded_log_hours", {}).items()
+        },
     )
 
 

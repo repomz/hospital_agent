@@ -146,5 +146,6 @@ class UserRequestTests(unittest.TestCase):
 
         self.assertEqual(viewer.posts[-1][1]["errors"], "command is required")
 
+
 if __name__ == "__main__":
     unittest.main()

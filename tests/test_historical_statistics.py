@@ -2,7 +2,6 @@ import importlib.util
 import unittest
 from pathlib import Path
 
-
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "upload_historical_statistics.py"
 SPEC = importlib.util.spec_from_file_location("upload_historical_statistics", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)

@@ -61,7 +61,15 @@ def convert_legacy_doc(source: Path, destination: Path) -> bool:
             return destination.is_file()
         if soffice:
             subprocess.run(
-                [soffice, "--headless", "--convert-to", "docx", "--outdir", str(destination.parent), str(source)],
+                [
+                    soffice,
+                    "--headless",
+                    "--convert-to",
+                    "docx",
+                    "--outdir",
+                    str(destination.parent),
+                    str(source),
+                ],
                 check=True,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -142,10 +150,12 @@ def build_index(archive: Path, output: Path, report_path: Path) -> dict[str, Any
                 if not 2015 <= int(operation_year) <= 2025:
                     counters["out_of_range_skipped"] += 1
                     year_counts["out_of_range_skipped"] += 1
-                    failures.append({
-                        "source_document": info.filename,
-                        "reason": f"folder year {year}, operation year {operation_year}",
-                    })
+                    failures.append(
+                        {
+                            "source_document": info.filename,
+                            "reason": f"folder year {year}, operation year {operation_year}",
+                        }
+                    )
                     continue
 
             identity = protocol_identity(payload)
@@ -154,10 +164,17 @@ def build_index(archive: Path, output: Path, report_path: Path) -> dict[str, Any
                 year_counts["duplicates_skipped"] += 1
                 continue
             identities.add(identity)
-            destination.write(json.dumps({
-                "source_document": info.filename,
-                "payload": payload,
-            }, ensure_ascii=False, separators=(",", ":")) + "\n")
+            destination.write(
+                json.dumps(
+                    {
+                        "source_document": info.filename,
+                        "payload": payload,
+                    },
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+                + "\n"
+            )
             counters["indexed"] += 1
             year_counts["indexed"] += 1
 
@@ -233,7 +250,9 @@ def upload_partition(
                     succeeded = 200 <= response.status < 300
                     if succeeded:
                         break
-                    reason = f"HTTP {response.status}: {response_body[:500].decode('utf-8', 'replace')}"
+                    reason = (
+                        f"HTTP {response.status}: {response_body[:500].decode('utf-8', 'replace')}"
+                    )
                     if 400 <= response.status < 500:
                         break
                 except (OSError, http.client.HTTPException) as exc:

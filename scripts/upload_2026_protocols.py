@@ -63,9 +63,7 @@ def existing_protocol_keys() -> set[str]:
 
 def operation_year(payload: dict) -> int | None:
     try:
-        return datetime.fromisoformat(
-            str(payload["time_beginning"]).replace("Z", "+00:00")
-        ).year
+        return datetime.fromisoformat(str(payload["time_beginning"]).replace("Z", "+00:00")).year
     except (KeyError, TypeError, ValueError):
         return None
 

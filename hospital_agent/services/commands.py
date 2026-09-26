@@ -1,5 +1,5 @@
-import logging
 import hashlib
+import logging
 import re
 import tempfile
 import uuid
@@ -12,7 +12,6 @@ from pydicom.uid import UID
 from ..config import DICOM_IMPORT_TIMEOUT_SECONDS, AgentConfig, update_polling_state
 from ..http_client import ViewerClient
 from ..state import AgentState, save_state
-
 
 LOGGER = logging.getLogger("hospital_agent.services.commands")
 
@@ -94,8 +93,8 @@ def find_dicom_studies(
     modality: str,
 ) -> dict[str, Any]:
     """Ищет CT/XA исследования в локальном PACS по фамилии и периоду."""
-    from .pacs import PACSClient
     from ..support.dicom import load_pacs_config
+    from .pacs import PACSClient
 
     patient = str(payload.get("patient") or payload.get("patient_name") or "").strip()
     if not patient:
@@ -131,9 +130,7 @@ def find_dicom_studies(
     for study in studies:
         # The frontend contract uses `patient`; retain `name` for compatibility
         # with existing PACS consumers.
-        study["patient"] = str(
-            study.get("patient") or study.get("name") or ""
-        ).strip()
+        study["patient"] = str(study.get("patient") or study.get("name") or "").strip()
     return {
         "modality": modality,
         "patient": patient,
@@ -216,9 +213,9 @@ def get_dicom_study(
     state: AgentState,
 ) -> dict[str, Any]:
     """Скачивает исследование напрямую по UID, строго загружает его и регистрирует."""
+    from ..support.dicom import load_pacs_config
     from .pacs import PACSClient
     from .yandex import YandexStorage
-    from ..support.dicom import load_pacs_config
 
     study_uid = str(payload.get("study_uid") or "").strip()
     if not study_uid:

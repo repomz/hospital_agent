@@ -16,3 +16,7 @@ downloaded_studies/
 .env
 env.txt
 agent_logs.txt
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/

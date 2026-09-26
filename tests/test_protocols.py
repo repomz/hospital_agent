@@ -17,10 +17,10 @@ from hospital_agent.polling.protocols import (
     parse_patient_flexible,
     parse_protocol,
     parse_study_id,
+    planned_recommendation,
     poll_operation_protocols,
     protocol_identity,
     protocol_signature,
-    planned_recommendation,
 )
 from hospital_agent.state import AgentState
 
@@ -28,17 +28,13 @@ from hospital_agent.state import AgentState
 class ProtocolMappingTests(unittest.TestCase):
     def test_archive_date_parser_accepts_legacy_date_and_time_range(self):
         self.assertEqual(
-            parse_operation_datetime_flexible(
-                "Дата операции: 6.10.15 (10.05-10.55)"
-            ),
+            parse_operation_datetime_flexible("Дата операции: 6.10.15 (10.05-10.55)"),
             datetime(2015, 10, 6, 10, 5),
         )
 
     def test_archive_date_parser_accepts_date_without_time(self):
         self.assertEqual(
-            parse_operation_datetime_flexible(
-                "Дата и время операции: 04.04.2022"
-            ),
+            parse_operation_datetime_flexible("Дата и время операции: 04.04.2022"),
             datetime(2022, 4, 4, 8, 0),
         )
 
@@ -104,11 +100,26 @@ class ProtocolMappingTests(unittest.TestCase):
 
     def test_department_codes_are_short_backend_values(self):
         cases = {
-            "42": "рсц", "12": "пит рсц", "44": "к/о 1", "45": "к/о 2",
-            "20": "гин/о", "24": "гной/х", "21": "прокт/х", "43": "невро/о",
-            "22": "нейро/х", "179": "диализ/о", "190": "реаб/о", "46": "пульм/о",
-            "25": "пласт/х", "26": "сос/х", "60": "платное", "49": "тер/о",
-            "29": "ур/о", "30": "хир", "33": "члх", "31": "тор/х",
+            "42": "рсц",
+            "12": "пит рсц",
+            "44": "к/о 1",
+            "45": "к/о 2",
+            "20": "гин/о",
+            "24": "гной/х",
+            "21": "прокт/х",
+            "43": "невро/о",
+            "22": "нейро/х",
+            "179": "диализ/о",
+            "190": "реаб/о",
+            "46": "пульм/о",
+            "25": "пласт/х",
+            "26": "сос/х",
+            "60": "платное",
+            "49": "тер/о",
+            "29": "ур/о",
+            "30": "хир",
+            "33": "члх",
+            "31": "тор/х",
         }
         for code, department in cases.items():
             with self.subTest(code=code):
@@ -243,6 +254,34 @@ class ProtocolMappingTests(unittest.TestCase):
             self.assertEqual(parser.call_count, 2)
             self.assertIn(str(path.resolve()), state.processed_protocols)
             self.assertEqual(state.last_protocol_recheck_slot, "2026-09-25T23:00")
+
+    def test_missing_file_does_not_abort_scan_or_complete_recheck(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = [root / "missing.docx", root / "remaining.docx"]
+            config = SimpleNamespace(agent_id="2", state_file=root / "state.json")
+            polling = PollingConfig(state=True, interval_min=1, operations_dirs=[root])
+            state = AgentState()
+            with (
+                patch("hospital_agent.polling.protocols.iter_protocol_files", return_value=paths),
+                patch(
+                    "hospital_agent.polling.protocols.protocol_signature",
+                    side_effect=[FileNotFoundError("moved"), "signature"],
+                ),
+                patch(
+                    "hospital_agent.polling.protocols.parse_protocol", return_value=None
+                ) as parser,
+                patch("hospital_agent.polling.protocols.LOGGER.exception"),
+            ):
+                poll_operation_protocols(
+                    config,
+                    polling,
+                    object(),
+                    state,
+                    now=datetime(2026, 9, 25, 14, tzinfo=timezone.utc),
+                )
+            parser.assert_called_once_with(paths[1], "2")
+            self.assertFalse(state.last_protocol_recheck_slot)
 
     def test_changed_old_protocol_is_sent_for_backend_update(self):
         with TemporaryDirectory() as directory:

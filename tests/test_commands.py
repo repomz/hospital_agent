@@ -10,8 +10,8 @@ from hospital_agent.services.commands import (
     execute_user_command,
     find_dicom_studies,
     find_operation_protocols,
-    import_operation_protocol,
     get_dicom_study,
+    import_operation_protocol,
 )
 from hospital_agent.state import AgentState
 
@@ -29,15 +29,14 @@ class ViewerStub:
 class CommandTests(unittest.TestCase):
     def test_find_dicom_studies_exposes_patient_name_for_frontend(self):
         config = SimpleNamespace(pacs_config_path=Path("pacs.json"))
-        with patch(
-            "hospital_agent.support.dicom.load_pacs_config", return_value={}
-        ), patch("hospital_agent.services.pacs.PACSClient") as pacs_client:
+        with (
+            patch("hospital_agent.support.dicom.load_pacs_config", return_value={}),
+            patch("hospital_agent.services.pacs.PACSClient") as pacs_client,
+        ):
             pacs_client.return_value.find_studies.return_value = [
                 {"uid": "1.2.3", "name": "Иванов Иван"}
             ]
-            result = find_dicom_studies(
-                config, {"patient": "Иванов", "period": "week"}, "XA"
-            )
+            result = find_dicom_studies(config, {"patient": "Иванов", "period": "week"}, "XA")
 
         self.assertEqual(result["studies"][0]["patient"], "Иванов Иван")
 
@@ -55,12 +54,15 @@ class CommandTests(unittest.TestCase):
                 study_polling=SimpleNamespace(operations_dirs=[Path(directory)]),
             )
             viewer = ViewerStub()
-            with patch(
-                "hospital_agent.polling.protocols.iter_protocol_files",
-                return_value=[path],
-            ), patch(
-                "hospital_agent.polling.protocols.parse_protocol",
-                return_value=protocol,
+            with (
+                patch(
+                    "hospital_agent.polling.protocols.iter_protocol_files",
+                    return_value=[path],
+                ),
+                patch(
+                    "hospital_agent.polling.protocols.parse_protocol",
+                    return_value=protocol,
+                ),
             ):
                 found = find_operation_protocols(config, {"patient": "Иванов"})
                 selected = found["protocols"][0]
@@ -82,9 +84,7 @@ class CommandTests(unittest.TestCase):
             "get_report",
         ):
             with self.subTest(command=command):
-                self.assertIsNone(
-                    execute_user_command(config, command, {}, "request-id")
-                )
+                self.assertIsNone(execute_user_command(config, command, {}, "request-id"))
 
     def test_sync_studies_scans_configured_protocol_directories(self):
         config = SimpleNamespace(
@@ -185,12 +185,15 @@ class CommandTests(unittest.TestCase):
                 state_file=Path(directory) / "state.json",
             )
             state = AgentState()
-            with patch(
-                "hospital_agent.services.pacs.PACSClient",
-                return_value=pacs_client,
-            ), patch(
-                "hospital_agent.services.yandex.YandexStorage",
-                return_value=storage,
+            with (
+                patch(
+                    "hospital_agent.services.pacs.PACSClient",
+                    return_value=pacs_client,
+                ),
+                patch(
+                    "hospital_agent.services.yandex.YandexStorage",
+                    return_value=storage,
+                ),
             ):
                 result = get_dicom_study(
                     config,
@@ -244,12 +247,15 @@ class CommandTests(unittest.TestCase):
                 pacs_config_path=Path(directory) / "missing.json",
                 state_file=Path(directory) / "state.json",
             )
-            with patch(
-                "hospital_agent.services.pacs.PACSClient",
-                return_value=pacs_client,
-            ), patch(
-                "hospital_agent.services.yandex.YandexStorage",
-                return_value=storage,
+            with (
+                patch(
+                    "hospital_agent.services.pacs.PACSClient",
+                    return_value=pacs_client,
+                ),
+                patch(
+                    "hospital_agent.services.yandex.YandexStorage",
+                    return_value=storage,
+                ),
             ):
                 with self.assertRaisesRegex(RuntimeError, "Yandex upload incomplete"):
                     get_dicom_study(
@@ -283,13 +289,17 @@ class CommandTests(unittest.TestCase):
                 pacs_config_path=Path(directory) / "missing.json",
                 state_file=Path(directory) / "state.json",
             )
-            with patch(
-                "hospital_agent.services.pacs.PACSClient",
-                return_value=pacs_client,
-            ), patch(
-                "hospital_agent.services.yandex.YandexStorage",
-                return_value=storage,
-            ), self.assertRaisesRegex(RuntimeError, "modality mismatch"):
+            with (
+                patch(
+                    "hospital_agent.services.pacs.PACSClient",
+                    return_value=pacs_client,
+                ),
+                patch(
+                    "hospital_agent.services.yandex.YandexStorage",
+                    return_value=storage,
+                ),
+                self.assertRaisesRegex(RuntimeError, "modality mismatch"),
+            ):
                 get_dicom_study(
                     config,
                     {"study_uid": "1.2.3"},
@@ -328,10 +338,13 @@ class CommandTests(unittest.TestCase):
                 pacs_config_path=Path(directory) / "missing.json",
                 state_file=Path(directory) / "state.json",
             )
-            with patch(
-                "hospital_agent.services.yandex.YandexStorage",
-                return_value=storage,
-            ), patch("hospital_agent.services.pacs.PACSClient") as pacs_client:
+            with (
+                patch(
+                    "hospital_agent.services.yandex.YandexStorage",
+                    return_value=storage,
+                ),
+                patch("hospital_agent.services.pacs.PACSClient") as pacs_client,
+            ):
                 with self.assertRaisesRegex(RuntimeError, "bucket unavailable"):
                     get_dicom_study(
                         config,
@@ -381,12 +394,15 @@ class CommandTests(unittest.TestCase):
                 state_file=Path(directory) / "state.json",
             )
             state = AgentState()
-            with patch(
-                "hospital_agent.services.pacs.PACSClient",
-                return_value=pacs_client,
-            ), patch(
-                "hospital_agent.services.yandex.YandexStorage",
-                return_value=storage,
+            with (
+                patch(
+                    "hospital_agent.services.pacs.PACSClient",
+                    return_value=pacs_client,
+                ),
+                patch(
+                    "hospital_agent.services.yandex.YandexStorage",
+                    return_value=storage,
+                ),
             ):
                 first = get_dicom_study(
                     config,

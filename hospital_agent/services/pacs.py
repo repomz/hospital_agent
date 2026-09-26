@@ -17,7 +17,6 @@ from pynetdicom.sop_class import (
 
 from ..support.dicom import build_date_range, format_study_folder, format_yandex_folder
 
-
 LOGGER = logging.getLogger("hospital_agent.services.pacs")
 
 STORAGE_SOPS = [
@@ -177,9 +176,7 @@ class PACSClient:
                 if status and status.Status in (0xFF00, 0xFF01) and identifier:
                     uid = identifier.get("StudyInstanceUID", "")
                     if uid:
-                        found_modalities = _modality_values(
-                            identifier.get("ModalitiesInStudy", "")
-                        )
+                        found_modalities = _modality_values(identifier.get("ModalitiesInStudy", ""))
                         if (
                             modality
                             and found_modalities
@@ -190,9 +187,9 @@ class PACSClient:
                             {
                                 "number": len(studies) + 1,
                                 "uid": uid,
-                                "name": str(
-                                    identifier.get("PatientName", "Unknown")
-                                ).replace("^", " ").strip(),
+                                "name": str(identifier.get("PatientName", "Unknown"))
+                                .replace("^", " ")
+                                .strip(),
                                 "birth_date": str(identifier.get("PatientBirthDate", "")),
                                 "age": str(identifier.get("PatientAge", "")),
                                 "date": str(identifier.get("StudyDate", "")),
@@ -200,7 +197,9 @@ class PACSClient:
                                 "modality": str(identifier.get("ModalitiesInStudy", "")),
                                 "description": str(identifier.get("StudyDescription", "")),
                                 "series": str(identifier.get("NumberOfStudyRelatedSeries", "")),
-                                "instances": str(identifier.get("NumberOfStudyRelatedInstances", "")),
+                                "instances": str(
+                                    identifier.get("NumberOfStudyRelatedInstances", "")
+                                ),
                             }
                         )
             LOGGER.info(
@@ -351,17 +350,10 @@ class PACSClient:
                     warning_suboperations = int(
                         getattr(status, "NumberOfWarningSuboperations", 0) or 0
                     )
-                    completed = int(
-                        getattr(status, "NumberOfCompletedSuboperations", 0) or 0
-                    )
-                    remaining = int(
-                        getattr(status, "NumberOfRemainingSuboperations", 0) or 0
-                    )
+                    completed = int(getattr(status, "NumberOfCompletedSuboperations", 0) or 0)
+                    remaining = int(getattr(status, "NumberOfRemainingSuboperations", 0) or 0)
                     total_suboperations = (
-                        remaining
-                        + completed
-                        + failed_suboperations
-                        + warning_suboperations
+                        remaining + completed + failed_suboperations + warning_suboperations
                     )
                     if total_suboperations:
                         expected_instances = max(expected_instances or 0, total_suboperations)
@@ -388,11 +380,12 @@ class PACSClient:
             study_dir,
         )
         if expected_instances is not None and received_count != expected_instances:
-            LOGGER.warning("Expected %s instances but received %s", expected_instances, received_count)
+            LOGGER.warning(
+                "Expected %s instances but received %s", expected_instances, received_count
+            )
 
         yandex_folder = (
-            f"{format_yandex_folder(patient_name, study_date)}_"
-            f"{sanitize_study_uid(study_uid)}"
+            f"{format_yandex_folder(patient_name, study_date)}_{sanitize_study_uid(study_uid)}"
         )
         return {
             "ok": (
@@ -409,9 +402,7 @@ class PACSClient:
             "expected_instances": expected_instances,
             "failed_suboperations": failed_suboperations,
             "warning_suboperations": warning_suboperations,
-            "c_get_status": (
-                f"0x{final_status:04X}" if final_status is not None else None
-            ),
+            "c_get_status": (f"0x{final_status:04X}" if final_status is not None else None),
             "patient": patient_name,
             "age": patient_age,
             "birth_date": patient_birth_date,
@@ -443,8 +434,4 @@ def _modality_values(value: Any) -> set[str]:
         raw_values = value
     else:
         raw_values = str(value or "").split("\\")
-    return {
-        str(item).strip().upper()
-        for item in raw_values
-        if str(item).strip()
-    }
+    return {str(item).strip().upper() for item in raw_values if str(item).strip()}

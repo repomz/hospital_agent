@@ -1,10 +1,10 @@
 import logging
 import os
 import re
+import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
-import xml.etree.ElementTree as ET
 
 LOGGER = logging.getLogger("hospital_agent.services.operation_reports")
 
@@ -92,45 +92,47 @@ def scan_and_filter_files(base_paths, start_period, end_period):
     """Сканирует несколько папок с операциями"""
     if isinstance(base_paths, str):
         base_paths = [base_paths]
-    
+
     results = []
     all_files = []
-    
+
     for base_path in base_paths:
         base_path = Path(base_path)
         if not base_path.exists():
             LOGGER.warning("Operations directory does not exist: %s", base_path)
             continue
-        
+
         for root, dirs, files in os.walk(base_path):
             for file in files:
-                if file.lower().endswith('.docx'):
+                if file.lower().endswith(".docx"):
                     all_files.append(Path(root) / file)
-    
+
     if not all_files:
         return []
-    
+
     for i, file_path in enumerate(all_files, 1):
         if i % 50 == 0 or i == len(all_files):
             LOGGER.info("Analyzed operation files: %s/%s", i, len(all_files))
-        
+
         result = analyze_file(file_path, start_period, end_period)
         if result:
             results.append(result)
-    
+
     return results
+
 
 def parse_time_string(time_str):
     """Нормализует время начала периода к формату HH:MM."""
-    time_str = time_str.replace('.', ':')
-    if ':' not in time_str:
-        time_str = time_str + ':00'
-    parts = time_str.split(':')
+    time_str = time_str.replace(".", ":")
+    if ":" not in time_str:
+        time_str = time_str + ":00"
+    parts = time_str.split(":")
     if len(parts) >= 2:
         hour = parts[0].zfill(2)
         minute = parts[1].zfill(2)
         return f"{hour}:{minute}"
     return "08:00"
+
 
 def get_start_datetime(period_days, time_str):
     """Вычисляет дату и время начала отчетного периода."""
@@ -146,41 +148,49 @@ def get_start_datetime(period_days, time_str):
     start_date = now.date() - timedelta(days=period_days)
     return datetime.combine(start_date, start_time)
 
+
 def read_docx_text(file_path):
     """Извлекает текст из .docx файла"""
     try:
-        with ZipFile(file_path, 'r') as docx:
-            with docx.open('word/document.xml') as f:
+        with ZipFile(file_path, "r") as docx:
+            with docx.open("word/document.xml") as f:
                 tree = ET.parse(f)
                 root = tree.getroot()
-                ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
-                
+                ns = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+
                 texts = []
-                for para in root.findall('.//w:p', ns):
+                for para in root.findall(".//w:p", ns):
                     para_text = []
                     for child in para:
-                        if child.tag == f'{{{ns["w"]}}}r':
-                            for text_elem in child.findall('.//w:t', ns):
+                        if child.tag == f"{{{ns['w']}}}r":
+                            for text_elem in child.findall(".//w:t", ns):
                                 if text_elem.text:
                                     para_text.append(text_elem.text)
                     if para_text:
-                        texts.append(''.join(para_text).strip())
-                
-                full_text = '\n'.join(texts)
-                
+                        texts.append("".join(para_text).strip())
+
+                full_text = "\n".join(texts)
+
                 # Добавляем пробелы между слитыми полями
-                full_text = re.sub(r'(\d{2}\.\d{2}\.\d{4})(\d{2}:\d{2})', r'\1 \2', full_text)
-                full_text = re.sub(r'(Дата и время операции:)(\d{2}\.\d{2}\.\d{4})', r'\1 \2', full_text)
-                full_text = re.sub(r'(Ф\.И\.О\. больного:)([А-Я])', r'\1 \2', full_text)
-                full_text = re.sub(r'(возраст\s*\d+)([А-Я])', r'\1 \2', full_text)
-                full_text = re.sub(r'(Карта стационарного больного[^\n]+?)(Дата)', r'\1\n\2', full_text)
-                full_text = re.sub(r'(Дата и время операции:[^\n]+?)(Ф\.И\.О\.)', r'\1\n\2', full_text)
-                full_text = re.sub(r'(Ф\.И\.О\. больного:[^\n]+?)(Диагноз)', r'\1\n\2', full_text)
-                
+                full_text = re.sub(r"(\d{2}\.\d{2}\.\d{4})(\d{2}:\d{2})", r"\1 \2", full_text)
+                full_text = re.sub(
+                    r"(Дата и время операции:)(\d{2}\.\d{2}\.\d{4})", r"\1 \2", full_text
+                )
+                full_text = re.sub(r"(Ф\.И\.О\. больного:)([А-Я])", r"\1 \2", full_text)
+                full_text = re.sub(r"(возраст\s*\d+)([А-Я])", r"\1 \2", full_text)
+                full_text = re.sub(
+                    r"(Карта стационарного больного[^\n]+?)(Дата)", r"\1\n\2", full_text
+                )
+                full_text = re.sub(
+                    r"(Дата и время операции:[^\n]+?)(Ф\.И\.О\.)", r"\1\n\2", full_text
+                )
+                full_text = re.sub(r"(Ф\.И\.О\. больного:[^\n]+?)(Диагноз)", r"\1\n\2", full_text)
+
                 return full_text
     except (BadZipFile, OSError, KeyError, ET.ParseError) as exc:
         LOGGER.warning("Cannot read DOCX file %s: %s", file_path, exc)
         return None
+
 
 def parse_operation_datetime(content):
     """Извлекает дату и время операции, включая разрывы цифр пробелами."""
@@ -194,13 +204,13 @@ def parse_operation_datetime(content):
     if match:
         try:
             day, month, year, hour, minute = (
-                int(re.sub(r"\s+", "", value))
-                for value in match.groups()
+                int(re.sub(r"\s+", "", value)) for value in match.groups()
             )
             return datetime(year, month, day, hour, minute)
         except ValueError:
             return None
     return None
+
 
 def parse_patient_from_content(content):
     """Извлекает ФИО и возраст"""
@@ -220,6 +230,7 @@ def parse_patient_full_from_content(content):
     if match:
         return normalize_spaces(match.group(1).strip()), match.group(2).strip()
     return None, None
+
 
 def _clean_medical_text(value):
     """Нормализует пробелы и пунктуацию медицинского текста."""
@@ -320,6 +331,7 @@ def shorten_operation_name(operation):
         operation = operation[:97].rstrip() + "..."
     return operation
 
+
 def parse_operation_from_content(content):
     """Извлекает и сокращает название операции"""
     patterns = [
@@ -327,16 +339,16 @@ def parse_operation_from_content(content):
         r"Операция:\s*\d+[ \t]*Операционная\s*№?\s*\d+\.?[ \t]*([^\r\n]+)",
         r"Операция:\s*\d+[ \t]*([^\r\n]+)",
     ]
-    
+
     operation = None
     for pattern in patterns:
         match = re.search(pattern, content)
         if match:
             operation = match.group(1).strip()
             break
-    
+
     if operation:
-        operation = operation.split('Карта стационарного больного')[0].strip()
+        operation = operation.split("Карта стационарного больного")[0].strip()
         if operation.strip(" .,:;-"):
             return shorten_operation_name(operation)
     return infer_operation_from_description(parse_operation_description(content))
@@ -401,22 +413,21 @@ def infer_operation_from_description(description):
     target_name = f" {'/'.join(targets)}" if targets else ""
     return shorten_operation_name(f"КАГ, {intervention_name}{target_name}")
 
+
 def classify_operation(operation):
     """Классифицирует операцию по типу вмешательства для статистики отчета."""
     op_lower = operation.lower()
-    
-    is_cag = 'каг' in op_lower
-    is_tsag = 'цаг' in op_lower
-    
-    has_stenting = 'стент' in op_lower
-    has_angioplasty = 'бап' in op_lower or 'баллон' in op_lower
+
+    is_cag = "каг" in op_lower
+    is_tsag = "цаг" in op_lower
+
+    has_stenting = "стент" in op_lower
+    has_angioplasty = "бап" in op_lower or "баллон" in op_lower
     has_thrombaspiration = (
-        'тромбэкстр' in op_lower
-        or 'тромбаспир' in op_lower
-        or re.search(r"\bта\b", op_lower)
+        "тромбэкстр" in op_lower or "тромбаспир" in op_lower or re.search(r"\bта\b", op_lower)
     )
-    has_recanalization = 'мр' in op_lower or 'реканализ' in op_lower
-    
+    has_recanalization = "мр" in op_lower or "реканализ" in op_lower
+
     if is_tsag:
         if has_thrombaspiration:
             return 2
@@ -434,55 +445,53 @@ def classify_operation(operation):
     else:
         return 7
 
+
 def analyze_file(file_path, start_period, end_period):
     """Извлекает из DOCX операции пациента, дату и тип операции в заданном периоде."""
     content = read_docx_text(file_path)
-    
+
     if not content:
         return None
-    
+
     op_datetime = parse_operation_datetime(content)
     if not op_datetime or not (start_period <= op_datetime <= end_period):
         return None
-    
+
     patient, age = parse_patient_from_content(content)
     operation = parse_operation_from_content(content)
-    
+
     if not patient or not operation:
         return None
-    
-    return {
-        'patient': patient,
-        'age': age,
-        'operation': operation,
-        'datetime': op_datetime
-    }
+
+    return {"patient": patient, "age": age, "operation": operation, "datetime": op_datetime}
+
 
 def sort_operations_by_category(operations):
     """Добавляет категорию операции и сортирует список для печати отчета."""
     for op in operations:
-        op['category'] = classify_operation(op['operation'])
-    operations.sort(key=lambda x: (x['category'], x['datetime']))
+        op["category"] = classify_operation(op["operation"])
+    operations.sort(key=lambda x: (x["category"], x["datetime"]))
     return operations
+
 
 def split_operations_by_plan(operations, planned_patients):
     """Разделяет операции на плановые и экстренные"""
     planned = []
     emergency = []
-    
+
     for op in operations:
-        patient_surname = op['patient'].split()[0] if op['patient'].split() else op['patient']
-        
+        patient_surname = op["patient"].split()[0] if op["patient"].split() else op["patient"]
+
         is_planned = any(
-            patient_surname.lower() == planned_patient.split()[0].lower() 
+            patient_surname.lower() == planned_patient.split()[0].lower()
             for planned_patient in planned_patients
         )
-        
+
         if is_planned:
             planned.append(op)
         else:
             emergency.append(op)
-    
+
     return planned, emergency
 
 
@@ -681,11 +690,7 @@ def truncate_text(value, limit=120):
 def is_operation_docx_candidate(path):
     """Отбрасывает временные, пустые и неподходящие файлы до чтения DOCX."""
     path = Path(path)
-    if (
-        not path.is_file()
-        or path.suffix.lower() != ".docx"
-        or path.name.startswith("~$")
-    ):
+    if not path.is_file() or path.suffix.lower() != ".docx" or path.name.startswith("~$"):
         return False
     try:
         return path.stat().st_size > 0
@@ -808,11 +813,7 @@ def build_operations_report_payload(
                 "operation": operation,
             }
         performed = next(
-            (
-                operation
-                for operation in planned_ops
-                if same_patient(plan_item, operation)
-            ),
+            (operation for operation in planned_ops if same_patient(plan_item, operation)),
             None,
         )
         if performed:
@@ -853,8 +854,10 @@ def build_operations_report_payload(
         if birth_date:
             try:
                 born = datetime.strptime(birth_date, "%d.%m.%Y")
-                age = end_period.year - born.year - (
-                    (end_period.month, end_period.day) < (born.month, born.day)
+                age = (
+                    end_period.year
+                    - born.year
+                    - ((end_period.month, end_period.day) < (born.month, born.day))
                 )
             except ValueError:
                 pass
@@ -881,59 +884,74 @@ def build_operations_report_payload(
         "today_planned_operations": today_planned_operations,
     }
 
+
 def write_stats(f, operations, title):
     """Записывает статистику и список операций"""
     if not operations:
         f.write(f"{title} не было.\n\n")
         return
-    
-    stats = {'tsag_only': 0, 'tsag_with_ta': 0, 'tsag_with_other': 0,
-             'cag_only': 0, 'cag_with_angioplasty': 0, 'cag_with_stenting': 0, 'other': 0}
-    
+
+    stats = {
+        "tsag_only": 0,
+        "tsag_with_ta": 0,
+        "tsag_with_other": 0,
+        "cag_only": 0,
+        "cag_with_angioplasty": 0,
+        "cag_with_stenting": 0,
+        "other": 0,
+    }
+
     for op in operations:
-        category = op['category']
+        category = op["category"]
         if category == 1:
-            stats['tsag_only'] += 1
+            stats["tsag_only"] += 1
         elif category == 2:
-            stats['tsag_with_ta'] += 1
+            stats["tsag_with_ta"] += 1
         elif category == 3:
-            stats['tsag_with_other'] += 1
+            stats["tsag_with_other"] += 1
         elif category == 4:
-            stats['cag_only'] += 1
+            stats["cag_only"] += 1
         elif category == 5:
-            stats['cag_with_angioplasty'] += 1
+            stats["cag_with_angioplasty"] += 1
         elif category == 6:
-            stats['cag_with_stenting'] += 1
+            stats["cag_with_stenting"] += 1
         else:
-            stats['other'] += 1
-    
-    if stats['tsag_only'] > 0:
+            stats["other"] += 1
+
+    if stats["tsag_only"] > 0:
         f.write(f"  ЦАГ                         {stats['tsag_only']}\n")
-    if stats['tsag_with_ta'] > 0:
+    if stats["tsag_with_ta"] > 0:
         f.write(f"  ЦАГ + тромбаспирация        {stats['tsag_with_ta']}\n")
-    if stats['tsag_with_other'] > 0:
+    if stats["tsag_with_other"] > 0:
         f.write(f"  ЦАГ + другие                {stats['tsag_with_other']}\n")
-    if stats['cag_only'] > 0:
+    if stats["cag_only"] > 0:
         f.write(f"  КАГ                         {stats['cag_only']}\n")
-    if stats['cag_with_angioplasty'] > 0:
+    if stats["cag_with_angioplasty"] > 0:
         f.write(f"  КАГ + ангиопластика         {stats['cag_with_angioplasty']}\n")
-    if stats['cag_with_stenting'] > 0:
+    if stats["cag_with_stenting"] > 0:
         f.write(f"  КАГ + стентирование         {stats['cag_with_stenting']}\n")
-    if stats['other'] > 0:
+    if stats["other"] > 0:
         f.write(f"  Прочие операции             {stats['other']}\n")
-    
+
     f.write("-" * 85 + "\n")
     f.write(f"{'№':<4} {'Пациент':<25} {'Операция'}\n")
     f.write("-" * 85 + "\n")
-    
+
     for i, op in enumerate(operations, 1):
         patient_str = f"{op['patient']} ({op['age']} лет)"
         f.write(f"{i:<4} {patient_str:<25} {op['operation']}\n")
-    
+
     f.write("-" * 85 + "\n\n")
 
-def generate_report(operations, start_period, end_period, 
-                   planned_patients_for_period, planned_details_today, report_dir):
+
+def generate_report(
+    operations,
+    start_period,
+    end_period,
+    planned_patients_for_period,
+    planned_details_today,
+    report_dir,
+):
     """
     Генерирует отчет
     planned_patients_for_period - плановые пациенты на ДАТУ НАЧАЛА ПЕРИОДА
@@ -941,40 +959,42 @@ def generate_report(operations, start_period, end_period,
     """
     # Разделяем операции, используя план на дату начала периода
     planned_ops, emergency_ops = split_operations_by_plan(operations, planned_patients_for_period)
-    
+
     # Сортируем
     planned_ops = sort_operations_by_category(planned_ops)
     emergency_ops = sort_operations_by_category(emergency_ops)
-    
+
     # Создаем папку для отчетов
     report_path = Path(report_dir)
     report_path.mkdir(parents=True, exist_ok=True)
-    
+
     # Имя файла в формате 17.04.26.txt
     output_filename = f"{datetime.now().strftime('%d.%m.%y')}.txt"
     output_filepath = report_path / output_filename
-    
-    with open(output_filepath, 'w', encoding='utf-8') as f:
+
+    with open(output_filepath, "w", encoding="utf-8") as f:
         f.write("=" * 85 + "\n")
         f.write("ОТЧЕТ ПО ОПЕРАЦИЯМ\n")
-        f.write(f"Период: с {start_period.strftime('%d.%m.%Y %H:%M')} по {end_period.strftime('%d.%m.%Y %H:%M')}\n")
+        f.write(
+            f"Период: с {start_period.strftime('%d.%m.%Y %H:%M')} по {end_period.strftime('%d.%m.%Y %H:%M')}\n"
+        )
         f.write("-" * 85 + "\n")
         f.write(f"  Плановые:   {len(planned_ops)}\n")
         f.write(f"  Экстренные: {len(emergency_ops)}\n")
         f.write(f"  ВСЕГО:      {len(operations)}\n")
-        
+
         # ПЛАНОВЫЕ ОПЕРАЦИИ (сверялись с планом на дату начала периода)
         f.write("=" * 85 + "\n")
         f.write(" " * 25 + f"ПЛАНОВЫЕ ОПЕРАЦИИ за {start_period.strftime('%d.%m.%Y')}\n")
         f.write("=" * 85 + "\n")
         write_stats(f, planned_ops, "ПЛАНОВЫХ ОПЕРАЦИЙ")
-        
+
         # ЭКСТРЕННЫЕ ОПЕРАЦИИ
         f.write("=" * 85 + "\n")
         f.write(" " * 35 + "ЭКСТРЕННЫЕ ОПЕРАЦИИ\n")
         f.write("=" * 85 + "\n")
         write_stats(f, emergency_ops, "ЭКСТРЕННЫХ ОПЕРАЦИЙ")
-    
+
         # ТЕКУЩИЙ ПЛАН ОПЕРАЦИЙ (на сегодня)
         f.write("=" * 85 + "\n")
         f.write(" " * 25 + f"ТЕКУЩИЙ ПЛАН ОПЕРАЦИЙ на {datetime.now().strftime('%d.%m.%Y')}\n")
@@ -995,14 +1015,16 @@ def generate_report(operations, start_period, end_period,
                 # Ограничиваем длину строк для читаемости
                 patient_short = patient[:25] if len(patient) > 25 else patient
                 department_short = department[:8] if len(department) > 8 else department
-                operation_short = operation_short[:50] if len(operation_short) > 50 else operation_short
+                operation_short = (
+                    operation_short[:50] if len(operation_short) > 50 else operation_short
+                )
                 f.write(f"{i:<4} {patient_short:<25} {department_short:<8} {operation_short}\n")
         else:
             f.write("План операций на сегодня не найден.\n")
 
         f.write("-" * 85 + "\n")
         f.write("=" * 85 + "\n")
-    
+
     return output_filepath
 
 
@@ -1071,9 +1093,7 @@ def generate_operations_report(
 def _operations_in_period(operations, start_period, end_period):
     """Выбирает операции из полуоткрытого интервала [начало, конец)."""
     return [
-        operation
-        for operation in operations
-        if start_period <= operation["datetime"] < end_period
+        operation for operation in operations if start_period <= operation["datetime"] < end_period
     ]
 
 

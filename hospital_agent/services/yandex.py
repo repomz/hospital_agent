@@ -10,7 +10,6 @@ import boto3
 import pydicom
 from pydicom.errors import InvalidDicomError
 
-
 LOGGER = logging.getLogger("hospital_agent.services.yandex")
 
 
@@ -129,15 +128,19 @@ class YandexStorage:
             relative_name = file_path.relative_to(source).as_posix()
             object_name = f"{yandex_folder}/{relative_name}"
             if self.upload_dicom_with_retries(file_path, object_name, retry_attempts, retry_delay):
-                return file_path, file_size, {
-                    "name": relative_name,
-                    "size": file_size,
-                    "url": self.client.generate_presigned_url(
-                        "get_object",
-                        Params={"Bucket": self.bucket, "Key": object_name},
-                        ExpiresIn=int(timedelta(days=3).total_seconds()),
-                    ),
-                }
+                return (
+                    file_path,
+                    file_size,
+                    {
+                        "name": relative_name,
+                        "size": file_size,
+                        "url": self.client.generate_presigned_url(
+                            "get_object",
+                            Params={"Bucket": self.bucket, "Key": object_name},
+                            ExpiresIn=int(timedelta(days=3).total_seconds()),
+                        ),
+                    },
+                )
             return file_path, file_size, None
 
         # S3 clients are thread-safe. A bounded pool removes the per-object

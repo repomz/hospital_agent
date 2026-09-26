@@ -162,9 +162,7 @@ class PACSClientTests(unittest.TestCase):
         success = SimpleNamespace(Status=0x0000)
         assoc = MagicMock()
         assoc.is_established = True
-        assoc.send_c_find.return_value = iter(
-            [(pending, ct), (pending, xa), (success, None)]
-        )
+        assoc.send_c_find.return_value = iter([(pending, ct), (pending, xa), (success, None)])
         ae = MagicMock()
         ae.associate.return_value = assoc
 

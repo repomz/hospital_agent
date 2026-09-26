@@ -1,5 +1,5 @@
-import unittest
 import os
+import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -10,9 +10,10 @@ from hospital_agent.services.yandex import YandexStorage
 
 class YandexStorageTests(unittest.TestCase):
     def test_missing_environment_is_reported_before_boto_client_creation(self):
-        with patch.dict(os.environ, {}, clear=True), patch(
-            "hospital_agent.services.yandex.boto3.session.Session"
-        ) as session:
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("hospital_agent.services.yandex.boto3.session.Session") as session,
+        ):
             with self.assertRaisesRegex(RuntimeError, "YANDEX_BUCKET"):
                 YandexStorage()
 
@@ -51,9 +52,7 @@ class YandexStorageTests(unittest.TestCase):
             ):
                 result = storage.upload_folder(source, "study", 1, 0)
 
-        uploaded_names = [
-            call.args[1] for call in storage.upload_dicom_with_retries.call_args_list
-        ]
+        uploaded_names = [call.args[1] for call in storage.upload_dicom_with_retries.call_args_list]
         self.assertCountEqual(
             uploaded_names,
             ["study/early.dcm", "study/middle.dcm", "study/late.dcm"],

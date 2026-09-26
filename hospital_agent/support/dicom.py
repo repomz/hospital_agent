@@ -26,6 +26,9 @@ def load_pacs_config(path: str | Path = "config.json") -> dict[str, Any]:
         for key, value in default_config.items():
             if key not in config:
                 config[key] = value
+        output_dir = Path(config["local"].get("output_dir", "downloaded_studies"))
+        if not output_dir.is_absolute():
+            config["local"]["output_dir"] = str(Path(path).resolve().parent / output_dir)
         return config
     return default_config
 

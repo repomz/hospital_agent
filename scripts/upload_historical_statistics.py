@@ -26,9 +26,8 @@ from hospital_agent.services.operation_reports import (  # noqa: E402
 )
 from hospital_agent.support.tls import verified_ssl_context  # noqa: E402
 
-
 OPERATION_TYPES = (
-	"ВСУЗИ",
+    "ВСУЗИ",
     "КАГ",
     "ЦАГ",
     "Стент кор",
@@ -113,7 +112,10 @@ def build_statistics(root: Path, start_year: int) -> tuple[dict, int, int]:
     end_year = max(counts, default=datetime.now().year)
     years = []
     for year in range(start_year, end_year + 1):
-        row = {operation_type: counts[year].get(operation_type, 0) for operation_type in OPERATION_TYPES}
+        row = {
+            operation_type: counts[year].get(operation_type, 0)
+            for operation_type in OPERATION_TYPES
+        }
         years.append({"year": year, "counts": row, "total": sum(row.values())})
     payload = {
         "schema_version": 2,

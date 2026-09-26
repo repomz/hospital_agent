@@ -22,11 +22,13 @@ from hospital_agent.config import load_agent_config
 class AppStartupTests(unittest.TestCase):
     def test_runtime_is_restarted_after_unexpected_error(self):
         config = object()
-        with patch(
-            "hospital_agent.app.run_agent",
-            side_effect=(RuntimeError("temporary crash"), 0),
-        ) as run, patch("hospital_agent.app.time.sleep") as sleep, patch(
-            "hospital_agent.app.logging.getLogger"
+        with (
+            patch(
+                "hospital_agent.app.run_agent",
+                side_effect=(RuntimeError("temporary crash"), 0),
+            ) as run,
+            patch("hospital_agent.app.time.sleep") as sleep,
+            patch("hospital_agent.app.logging.getLogger"),
         ):
             result = run_agent_resilient(config, restart_delay=10)
 
@@ -35,10 +37,13 @@ class AppStartupTests(unittest.TestCase):
         sleep.assert_called_once_with(10)
 
     def test_standard_dotenv_is_loaded_without_overriding_process_values(self):
-        with TemporaryDirectory() as tmp_dir, patch.dict(
-            os.environ,
-            {"YANDEX_BUCKET": "from-process"},
-            clear=True,
+        with (
+            TemporaryDirectory() as tmp_dir,
+            patch.dict(
+                os.environ,
+                {"YANDEX_BUCKET": "from-process"},
+                clear=True,
+            ),
         ):
             base_dir = Path(tmp_dir)
             (base_dir / ".env").write_text(

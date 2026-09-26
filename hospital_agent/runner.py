@@ -3,9 +3,10 @@ import signal
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Callable
 
-from .config import AgentConfig, DEFAULT_REQUEST_TIMEOUT_SECONDS, PollingConfig
+from .config import DEFAULT_REQUEST_TIMEOUT_SECONDS, AgentConfig, PollingConfig
 from .http_client import ViewerClient
 from .polling.alive import send_alive
 from .polling.logs import upload_agent_logs
@@ -17,7 +18,6 @@ from .polling.pacs_studies import (
 from .polling.protocols import poll_operation_protocols
 from .polling.user_requests import poll_user_requests
 from .state import AgentState, load_state
-
 
 LOGGER = logging.getLogger("hospital_agent")
 _running = True
@@ -134,7 +134,12 @@ def _schedule_runtimes(
         if now_monotonic < runtime.next_run_at:
             continue
         runtime.future = executor.submit(runtime.run)
-        runtime.next_run_at = now_monotonic + max(runtime.config.interval_min * 60, 1)
+        if runtime.name == "agent_logs":
+            wall_now = datetime.now()
+            next_hour = wall_now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+            runtime.next_run_at = now_monotonic + (next_hour - wall_now).total_seconds()
+        else:
+            runtime.next_run_at = now_monotonic + max(runtime.config.interval_min * 60, 1)
 
 
 def run_agent(config: AgentConfig) -> int:

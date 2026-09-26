@@ -5,7 +5,6 @@ from pathlib import Path, PureWindowsPath
 from threading import RLock
 from typing import Any
 
-
 DEFAULT_CONFIG_PATH = Path("agent_config.json")
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 30
 DICOM_IMPORT_TIMEOUT_SECONDS = 1800
@@ -96,8 +95,7 @@ def load_agent_config(path: str | Path = DEFAULT_CONFIG_PATH) -> AgentConfig:
 
     study_polling = _polling_config(raw_config, "study_polling")
     study_polling.operations_dirs = [
-        _resolve_local_path(base_dir, path)
-        for path in study_polling.operations_dirs or []
+        _resolve_local_path(base_dir, path) for path in study_polling.operations_dirs or []
     ]
 
     return AgentConfig(

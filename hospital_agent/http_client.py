@@ -6,7 +6,6 @@ from urllib.request import Request, urlopen
 
 from .support.tls import verified_ssl_context
 
-
 LOGGER = logging.getLogger("hospital_agent.http")
 
 
@@ -69,6 +68,6 @@ class ViewerClient:
             return None
         try:
             return json.loads(raw.decode("utf-8"))
-        except json.JSONDecodeError as exc:
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             LOGGER.warning("GET %s returned invalid JSON: %s", url, exc)
             return None

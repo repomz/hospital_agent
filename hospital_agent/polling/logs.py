@@ -7,7 +7,6 @@ from ..config import AgentConfig
 from ..http_client import ViewerClient
 from ..state import AgentState, save_state
 
-
 LOGGER = logging.getLogger("hospital_agent.logs")
 RETENTION_DAYS = 7
 
@@ -39,11 +38,7 @@ def _completed_log_hours(log_dir: Path, now: datetime) -> dict[datetime, str]:
             if active_hour is not None:
                 grouped.setdefault(active_hour, []).append(line)
 
-    return {
-        hour: "\n".join(lines).strip()
-        for hour, lines in grouped.items()
-        if lines
-    }
+    return {hour: "\n".join(lines).strip() for hour, lines in grouped.items() if lines}
 
 
 def upload_agent_logs(

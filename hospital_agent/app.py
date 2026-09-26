@@ -1,5 +1,6 @@
 import logging
 import sys
+import threading
 import time
 from datetime import date
 from pathlib import Path, PureWindowsPath
@@ -7,14 +8,16 @@ from typing import Callable
 
 from dotenv import load_dotenv
 
-from .config import DEFAULT_CONFIG_PATH, load_agent_config
+from . import __version__
+from .config import DEFAULT_CONFIG_PATH, AgentConfig, load_agent_config
 from .runner import run_agent
-
 
 RUNTIME_RESTART_DELAY_SECONDS = 10
 
 
-def run_agent_resilient(config: object, restart_delay: float = RUNTIME_RESTART_DELAY_SECONDS) -> int:
+def run_agent_resilient(
+    config: AgentConfig, restart_delay: float = RUNTIME_RESTART_DELAY_SECONDS
+) -> int:
     """Перезапускает runtime после неожиданной внутренней ошибки."""
     while True:
         try:
@@ -44,6 +47,20 @@ class AgentContextFilter(logging.Filter):
             source_name = record.filename
         record.source_location = f"{source_name}:{record.lineno}"
         return True
+
+
+class StructuredLineFormatter(logging.Formatter):
+    """Keep traceback and multiline diagnostics identifiable when copied or filtered."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        source = getattr(record, "source_location", record.name).removeprefix("hospital_agent/")
+        prefix = f"{self.formatTime(record)} | {record.levelname} | {getattr(record, 'agent_name', 'agent')} | {source} | "
+        message = record.getMessage()
+        if record.exc_info:
+            message += "\n" + self.formatException(record.exc_info)
+        if record.stack_info:
+            message += "\n" + self.formatStack(record.stack_info)
+        return "\n".join(prefix + line for line in message.splitlines())
 
 
 class DailyFileHandler(logging.Handler):
@@ -130,13 +147,24 @@ def setup_logging(
         handler.addFilter(context_filter)
     logging.basicConfig(
         level=logging.INFO,
-        format=(
-            "%(asctime)s | %(levelname)s | %(agent_name)s | "
-            "%(source_location)s | %(message)s"
-        ),
+        format=("%(asctime)s | %(levelname)s | %(agent_name)s | %(source_location)s | %(message)s"),
         handlers=handlers,
         force=True,
     )
+    for handler in handlers:
+        handler.setFormatter(StructuredLineFormatter())
+    logging.captureWarnings(True)
+
+    def uncaught(exc_type, exc_value, traceback):
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc_value, traceback)
+            return
+        logging.getLogger("hospital_agent.system").critical(
+            "Uncaught exception", exc_info=(exc_type, exc_value, traceback)
+        )
+
+    sys.excepthook = uncaught
+    threading.excepthook = lambda args: uncaught(args.exc_type, args.exc_value, args.exc_traceback)
     # pynetdicom на INFO печатает каждый DICOM dataset и каждый C-STORE instance.
     # Агент логирует итог целого исследования самостоятельно.
     logging.getLogger("pynetdicom").setLevel(logging.WARNING)
@@ -160,7 +188,8 @@ def main() -> None:
 
     setup_logging(config.log_dir, background, config.agent_id)
     logging.getLogger("hospital_agent.startup").info(
-        "Logging mode=%s",
+        "Agent version=%s; Logging mode=%s",
+        __version__,
         "daily_file" if background else "terminal",
     )
     raise SystemExit(run_agent_resilient(config))

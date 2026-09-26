@@ -6,22 +6,20 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from ..config import AgentConfig, PollingConfig
+from ..http_client import ViewerClient
 from ..services.operation_reports import (
+    is_operation_docx_candidate,
     parse_operation_datetime,
     parse_operation_description,
     parse_operation_from_content,
-    parse_recommendation,
     parse_patient_full_from_content,
+    parse_recommendation,
     read_docx_text,
-    is_operation_docx_candidate,
     shorten_operation_description,
     shorten_operation_name,
 )
-
-from ..config import AgentConfig, PollingConfig
-from ..http_client import ViewerClient
 from ..state import AgentState, save_state
-
 
 LOGGER = logging.getLogger("hospital_agent.protocols")
 STUDY_NAMESPACE = uuid.UUID("90153e75-8f87-4f1f-a874-6a0ef089cf68")
@@ -44,9 +42,7 @@ def iter_protocol_files(operations_dirs: list[Path]) -> list[Path]:
             LOGGER.warning("Operations directory does not exist: %s", operations_dir)
             continue
         files.extend(
-            path
-            for path in operations_dir.rglob("*")
-            if is_operation_docx_candidate(path)
+            path for path in operations_dir.rglob("*") if is_operation_docx_candidate(path)
         )
     return sorted(files)
 
@@ -143,10 +139,8 @@ def _protocol_conclusion(description: str) -> str:
         flags=re.IGNORECASE,
     )
     if marker:
-        raw_course = normalized[: marker.start()].strip(" .")
         raw_conclusion = normalized[marker.end() :].strip(" .")
     else:
-        raw_course = normalized
         diagnostic_sentences = [
             sentence.strip()
             for sentence in re.split(r"(?<=[.!?])\s+", normalized)
@@ -252,7 +246,7 @@ def parse_patient_flexible(content: str) -> tuple[str | None, str | None]:
 def compact_operation_name(value: str) -> str:
     """Удаляет номер операционной и применяет клинические сокращения."""
     value = re.sub(
-		r"\bОперационн\w*\s*(?:№\s*)?\d+\b\s*[.:-]*\s*",
+        r"\bОперационн\w*\s*(?:№\s*)?\d+\b\s*[.:-]*\s*",
         "",
         _normalize_text(value),
         flags=re.IGNORECASE,
@@ -368,22 +362,25 @@ def classify_study_type(operation: str) -> str:
     """Нормализует известный тип или возвращает сокращенное название операции."""
     value = _normalize_text(operation).lower().replace("ё", "е")
     is_carotid = any(token in value for token in ("вса", "сонн", "каротид"))
-    is_peripheral = any(
-        token in value
-        for token in (
-            "перифер",
-            "нижн",
-            "пба",
-            "нпа",
-            "подвздош",
-            "бедрен",
-            "большеберц",
-            "малоберц",
-            "берцов",
-            "подколен",
-            "голен",
+    is_peripheral = (
+        any(
+            token in value
+            for token in (
+                "перифер",
+                "нижн",
+                "пба",
+                "нпа",
+                "подвздош",
+                "бедрен",
+                "большеберц",
+                "малоберц",
+                "берцов",
+                "подколен",
+                "голен",
+            )
         )
-    ) or re.search(r"\bнк\b", value) is not None
+        or re.search(r"\bнк\b", value) is not None
+    )
 
     if re.search(r"двухкамер|\bdr\b", value) and re.search(r"\bэкс\b|кардиостим", value):
         return "ЭКС DR"
@@ -397,10 +394,7 @@ def classify_study_type(operation: str) -> str:
         if is_peripheral:
             return "стент_периферии"
         return "стент_кор"
-    if any(
-        token in value
-        for token in ("бап", "ангиопласт", "ангилопласт", "баллон", "балон")
-    ):
+    if any(token in value for token in ("бап", "ангиопласт", "ангилопласт", "баллон", "балон")):
         if is_carotid:
             return "бап_вса"
         if is_peripheral:
@@ -488,17 +482,21 @@ def poll_operation_protocols(
     sent_count = 0
     week_start, local_now = _current_week_window(now)
     recheck_slot = _protocol_recheck_slot(local_now)
-    force_recheck = bool(
-        recheck_slot and recheck_slot != state.last_protocol_recheck_slot
-    )
+    force_recheck = bool(recheck_slot and recheck_slot != state.last_protocol_recheck_slot)
     known_protocol_keys = set(state.processed_protocol_keys)
+    incomplete_scan = False
     for path in iter_protocol_files(polling.operations_dirs or []):
-        signature = protocol_signature(path)
+        try:
+            signature = protocol_signature(path)
+        except OSError:
+            # Word or a user can move a file after directory enumeration.
+            # Keep scanning other patients and retry this file next time.
+            LOGGER.exception("Cannot read protocol metadata: file=%s", path)
+            incomplete_scan = True
+            continue
         state_key = str(path.resolve())
         previous_signature = state.processed_protocols.get(state_key)
-        signature_changed = bool(
-            previous_signature and previous_signature != signature
-        )
+        signature_changed = bool(previous_signature and previous_signature != signature)
         if previous_signature == signature and not force_recheck:
             continue
 
@@ -554,7 +552,7 @@ def poll_operation_protocols(
                 payload["study_id"],
                 path,
             )
-    if force_recheck:
+    if force_recheck and not incomplete_scan:
         with state.lock:
             state.last_protocol_recheck_slot = recheck_slot
             save_state(config.state_file, state)
