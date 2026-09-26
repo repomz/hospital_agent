@@ -485,7 +485,10 @@ def poll_operation_protocols(
     force_recheck = bool(recheck_slot and recheck_slot != state.last_protocol_recheck_slot)
     known_protocol_keys = set(state.processed_protocol_keys)
     incomplete_scan = False
-    for path in iter_protocol_files(polling.operations_dirs or []):
+    files = iter_protocol_files(polling.operations_dirs or [])
+    skipped_old = 0
+    invalid = 0
+    for path in files:
         try:
             signature = protocol_signature(path)
         except OSError:
@@ -502,6 +505,7 @@ def poll_operation_protocols(
 
         payload = parse_protocol(path, config.agent_id)
         if payload is None:
+            invalid += 1
             # Обычный polling не перечитывает неизменный ошибочный файл каждую
             # минуту. Контрольные проходы в 14:00 и 23:00 попробуют его снова.
             _remember_protocol_signature(config, state, state_key, signature)
@@ -516,8 +520,9 @@ def poll_operation_protocols(
             _remember_protocol_signature(config, state, state_key, signature)
             continue
         if operation_datetime < week_start and not signature_changed:
+            skipped_old += 1
             _remember_protocol_signature(config, state, state_key, signature)
-            LOGGER.info(
+            LOGGER.debug(
                 "Protocol before current week skipped: operation_time=%s file=%s",
                 operation_datetime.isoformat(),
                 path,
@@ -556,4 +561,14 @@ def poll_operation_protocols(
         with state.lock:
             state.last_protocol_recheck_slot = recheck_slot
             save_state(config.state_file, state)
+    if force_recheck or skipped_old or invalid or incomplete_scan or sent_count:
+        LOGGER.info(
+            "Protocol scan: files=%s sent=%s before_week=%s invalid=%s metadata_errors=%s recheck=%s",
+            len(files),
+            sent_count,
+            skipped_old,
+            invalid,
+            incomplete_scan,
+            force_recheck,
+        )
     return sent_count
