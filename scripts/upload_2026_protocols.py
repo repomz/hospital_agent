@@ -3,19 +3,21 @@
 
 from __future__ import annotations
 
+import argparse
 import json
+import os
 import sys
 import time
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-# Укажите только каталог с операциями. Остальные параметры обычно менять не нужно.
-OPERATIONS_DIR = Path(r"C:\Users\Angio_hir1\Desktop\Операции 2026")
+# Укажите оба каталога параметрами --operations-dir; допустимо повторять параметр.
 YEAR = 2026
-BACKEND_URL = "https://135.106.195.161/api"
+BACKEND_URL = os.environ.get("VIEWER_BACKEND_URL", "https://angio.su/api")
 BATCH_SIZE = 25
 PAUSE_BETWEEN_BATCHES_SECONDS = 1.0
 REQUEST_TIMEOUT_SECONDS = 30
@@ -85,30 +87,61 @@ def send_protocol(payload: dict) -> bool:
     return False
 
 
-def main() -> int:
-    if not OPERATIONS_DIR.is_dir():
-        print(f"Каталог не найден: {OPERATIONS_DIR}")
+def main(argv: list[str] | None = None) -> int:
+    global BACKEND_URL
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--operations-dir",
+        action="append",
+        type=Path,
+        required=True,
+        help="Каталог с протоколами DOCX (параметр можно указать несколько раз)",
+    )
+    parser.add_argument(
+        "--backend-url",
+        default=BACKEND_URL,
+        help="API backend (по умолчанию https://angio.su/api)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Только посчитать файлы и дубликаты, ничего не отправлять",
+    )
+    args = parser.parse_args(argv)
+    BACKEND_URL = args.backend_url
+    missing = [path for path in args.operations_dir if not path.is_dir()]
+    if missing:
+        for path in missing:
+            print(f"Каталог не найден: {path}")
         return 2
 
     known = existing_protocol_keys()
     queued: list[dict] = []
     skipped_invalid = 0
+    skipped_duplicates = 0
     duplicate_keys = set(known)
-    for path in iter_protocol_files([OPERATIONS_DIR]):
+    types: Counter[str] = Counter()
+    for path in iter_protocol_files(args.operations_dir):
         payload = parse_protocol(path, "bulk-2026")
         if payload is None or operation_year(payload) != YEAR:
             skipped_invalid += 1
             continue
         identity = protocol_identity(payload)
         if identity in duplicate_keys:
+            skipped_duplicates += 1
             continue
         duplicate_keys.add(identity)
         queued.append(payload)
+        types[str(payload.get("study_type") or "не указано")] += 1
 
     print(
         f"Найдено новых протоколов: {len(queued)}; "
-        f"уже на backend: {len(known)}; пропущено: {skipped_invalid}"
+        f"уже на backend: {len(known)}; дубликаты: {skipped_duplicates}; "
+        f"непрочитано/не 2026: {skipped_invalid}"
     )
+    print(f"Распределение по типам: {dict(sorted(types.items()))}")
+    if args.dry_run:
+        return 0
     sent = failed = 0
     for index, payload in enumerate(queued, start=1):
         if send_protocol(payload):
