@@ -89,6 +89,7 @@ def build_index(archive: Path, output: Path, report_path: Path) -> dict[str, Any
     counters: Counter[str] = Counter()
     per_year: dict[str, Counter[str]] = {}
     failures: list[dict[str, str]] = []
+    department_reviews: list[dict[str, str]] = []
     identities: set[str] = set()
 
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -144,6 +145,13 @@ def build_index(archive: Path, output: Path, report_path: Path) -> dict[str, Any
                 continue
 
             operation_year = str(payload["time_beginning"])[:4]
+            if payload.get("department_review"):
+                department_reviews.append(
+                    {
+                        "source_document": info.filename,
+                        "record_number": str(payload["department_review"]),
+                    }
+                )
             if year != "unknown" and operation_year != year:
                 counters["year_mismatch"] += 1
                 year_counts["year_mismatch"] += 1
@@ -185,6 +193,7 @@ def build_index(archive: Path, output: Path, report_path: Path) -> dict[str, Any
         "index": str(output.resolve()),
         "counts": dict(counters),
         "years": {year: dict(values) for year, values in sorted(per_year.items())},
+        "department_manual_review": department_reviews,
         "failures": failures,
     }
     report_path.write_text(

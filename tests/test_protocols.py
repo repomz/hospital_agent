@@ -77,12 +77,12 @@ class ProtocolMappingTests(unittest.TestCase):
             "Стентирование коронарных артерий": "стент_кор",
             "Баллонная ангиопластика нижней конечности": "бап_периферии",
             "БАП артерий НК": "бап_периферии",
-            "АГ балонная ангилопластика задней большеберцовой": "бап_периферии",
+            "АГ балонная ангилопластика задней большеберцовой": "бап_голень",
             "Тромбаспирация": "тромбаспирация",
             "ТА": "тромбаспирация",
-            "Тромбэкстракция из СМА": "тромбаспирация",
-            "Имплантация двухкамерного ЭКС Apollo DR": "ЭКС DR",
-            "Имплантация однокамерного ЭКС SR": "ЭКС SR",
+            "Тромбэкстракция из СМА": "инсульт",
+            "Имплантация двухкамерного ЭКС Apollo DR": "ЭКС 2к",
+            "Имплантация однокамерного ЭКС SR": "ЭКС 1к",
         }
         for operation, expected in cases.items():
             with self.subTest(operation=operation):
@@ -95,7 +95,7 @@ class ProtocolMappingTests(unittest.TestCase):
     def test_unknown_operation_becomes_a_valid_study_type(self):
         self.assertEqual(
             classify_study_type("Имплантация ресинхронизирующего устройства"),
-            "имплантация ресинхронизирующего устройства",
+            "другие",
         )
 
     def test_department_codes_are_short_backend_values(self):
@@ -167,7 +167,7 @@ class ProtocolMappingTests(unittest.TestCase):
         self.assertEqual(payload["patient"], "Иванов Иван Иванович")
         self.assertEqual(payload["name_operation"], "КАГ. ТА I ВТК")
         self.assertEqual(
-            payload["descr_operation"],
+            payload["conclusion"],
             "Выполнена ТА из I ВТК.",
         )
         self.assertEqual(payload["recommendation"], "")
@@ -191,7 +191,7 @@ class ProtocolMappingTests(unittest.TestCase):
         self.assertIsNotNone(payload)
         self.assertEqual(
             payload["study_type"],
-            "ЭКС DR",
+            "ЭКС 2к",
         )
         self.assertEqual(payload["surgeon"], "петров")
 
@@ -213,7 +213,7 @@ class ProtocolMappingTests(unittest.TestCase):
         self.assertIsNotNone(payload)
         self.assertEqual(payload["surgeon"], "не указано")
 
-    def test_empty_and_word_lock_files_are_not_discovered(self):
+    def test_empty_files_are_checked_but_word_lock_files_are_ignored(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "empty.docx").touch()
@@ -221,7 +221,7 @@ class ProtocolMappingTests(unittest.TestCase):
             expected = root / "operation.docx"
             expected.write_bytes(b"non-empty")
 
-            self.assertEqual(iter_protocol_files([root]), [expected])
+            self.assertEqual(iter_protocol_files([root]), [root / "empty.docx", expected])
 
     def test_rejected_protocol_is_rechecked_at_14_and_23(self):
         with TemporaryDirectory() as directory:

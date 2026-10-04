@@ -1,0 +1,28 @@
+{
+  "viewer_url": "https://angio.su/api",
+  "agent_id": 1,
+  "description": "операционная №1",
+  "log_dir": "logs/agent",
+  "state_file": "logs/agent/state.json",
+  "alive_polling_interval_min": 1,
+  "pacs_config_path": "config.json",
+  "user_requests_polling": {
+    "state": true,
+    "interval_min": 1
+  },
+  "ct_polling": {
+    "state": false,
+    "interval_min": 10
+  },
+  "xa_polling": {
+    "state": true,
+    "interval_min": 10
+  },
+  "study_polling": {
+    "state": false,
+    "interval_min": 1,
+    "operations_dir": [
+      "C:\\Path\\To\\Operations"
+    ]
+  }
+}

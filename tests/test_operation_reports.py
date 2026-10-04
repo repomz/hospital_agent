@@ -114,15 +114,15 @@ class OperationReportParsingTests(unittest.TestCase):
     def test_operation_name_uses_requested_abbreviations(self):
         cases = {
             "Коронарография. В условиях ЭКМО": "КАГ. ЭКМО",
-            "Церебральная ангиография бассейна ОСА справа": "ЦАГ ОСА прав.",
+            "Церебральная ангиография бассейна ОСА справа": "ЦАГ ОСА справа",
             (
                 "Коронарография. Локальная эндоваскулярная трансартериальная "
                 "тромбоаспирация из I ветки тупого края."
             ): "КАГ. ТА I ВТК.",
-            "Попытка тромбоаспирации ВСА слева": "поп. ТА ВСА лев.",
+            "Попытка тромбоаспирации ВСА слева": "поп. ТА ВСА слева",
             "Баллонная ангиопластика артерий голени": "БАП голени",
             "Баллонная БАП артерий голени": "БАП голени",
-            "Частичная ЦАГ. ТА/ТА из СМА": "Частичная ЦАГ. ТА из СМА",
+            "Частичная ЦАГ. ТА/ТА из СМА": "ЦАГ. ТА из СМА",
         }
         for source, expected in cases.items():
             with self.subTest(source=source):
@@ -140,7 +140,7 @@ class OperationReportParsingTests(unittest.TestCase):
 
         self.assertEqual(
             shorten_operation_description(description),
-            "Доступ: правой лучевой артерии, 6F. окклюзия СМА.",
+            "Доступ: правой лучевой артерии, 6F. Окклюзия СМА.",
         )
 
     def test_access_is_compacted_without_word_performed(self):

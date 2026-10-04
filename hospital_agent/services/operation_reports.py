@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
+from ..clinical_terms import normalize_terms
+
 LOGGER = logging.getLogger("hospital_agent.services.operation_reports")
 
 # --- НАСТРОЙКИ ПО УМОЛЧАНИЮ ---
@@ -163,9 +165,13 @@ def read_docx_text(file_path):
                     para_text = []
                     for child in para:
                         if child.tag == f"{{{ns['w']}}}r":
-                            for text_elem in child.findall(".//w:t", ns):
-                                if text_elem.text:
+                            for text_elem in child.iter():
+                                if text_elem.tag == f"{{{ns['w']}}}t" and text_elem.text:
                                     para_text.append(text_elem.text)
+                                elif text_elem.tag in (f"{{{ns['w']}}}br", f"{{{ns['w']}}}cr"):
+                                    para_text.append("\n")
+                                elif text_elem.tag == f"{{{ns['w']}}}tab":
+                                    para_text.append("\t")
                     if para_text:
                         texts.append("".join(para_text).strip())
 
@@ -243,6 +249,7 @@ def _clean_medical_text(value):
 
 def _apply_operation_abbreviations(value):
     """Применяет безопасные общеупотребительные сокращения операций и сосудов."""
+    value = normalize_terms(value)
     value = re.sub(
         r"\bбаллонн\w*\s+(?:анги(?:о|л)?пласт\w*|БАП)\b",
         "БАП",
@@ -254,9 +261,9 @@ def _apply_operation_abbreviations(value):
         (r"\bкоронарограф\w*", "КАГ"),
         (r"\bцеребральн\w*\s+(?:пан)?ангиограф\w*", "ЦАГ"),
         (r"\b(?:пан)?ангиограф\w*", "АГ"),
-        (r"\bтромб(?:о)?(?:аспирац|экстракц)\w*", "ТА"),
+        (r"\bтромб(?:о)?аспирац\w*", "ТА"),
+        (r"\bтромб(?:о)?экстракц\w*", "ТЭ"),
         (r"\b(?:механическ\w*\s+)?реканализац\w*", "МР"),
-        (r"\bстентирован\w*", "стент"),
         (r"\bанги(?:о|л)?пласт\w*", "БАП"),
         (r"\bбифуркационн\w*", "биф"),
         (r"\b(?:внутриаортальн\w*\s+)?контрпульсатор\w*", "ВАБК"),
@@ -292,12 +299,15 @@ def _apply_operation_abbreviations(value):
 def shorten_operation_name(operation):
     """Сокращает название операции без потери типа вмешательства и целевого сосуда."""
     operation = _apply_operation_abbreviations(operation)
+    operation = re.sub(r"\bстентирован\w*", "стент", operation, flags=re.I)
+    operation = re.sub(r"\bэмболизация\s+маточн\w*(?:\s+артери\w*)?", "ЭМА", operation, flags=re.I)
     operation = re.sub(r"\bв\s+условиях\b", "", operation, flags=re.IGNORECASE)
     operation = re.sub(r"\bбассейн\w*\b", "", operation, flags=re.IGNORECASE)
     operation = re.sub(r"\bпопытк\w*\b", "поп.", operation, flags=re.IGNORECASE)
     operation = re.sub(r"\btry\b", "поп.", operation, flags=re.IGNORECASE)
-    operation = re.sub(r"\bсправа\b", "прав.", operation, flags=re.IGNORECASE)
-    operation = re.sub(r"\bслева\b", "лев.", operation, flags=re.IGNORECASE)
+    operation = re.sub(r"\bчастичн\w*\s*", "", operation, flags=re.I)
+    operation = re.sub(r"\bсегмент(?:ов|а)?\b", "", operation, flags=re.I)
+    operation = re.sub(r"\bсо\s+стент\b", "и стент", operation, flags=re.I)
     operation = re.sub(
         r"\b(?:локальн\w*|эндоваскулярн\w*|трансартериальн\w*|"
         r"тотальн\w*|селективн\w*|транслюминальн\w*|первичн\w*)\b",
@@ -306,7 +316,7 @@ def shorten_operation_name(operation):
         flags=re.IGNORECASE,
     )
     operation = re.sub(
-        r"\b(?:баллонн\w*|механическ\w*|артери\w*|окклюзи\w*|установк\w*)\b",
+        r"\b(?:баллонн\w*|механическ\w*|артери\w*)\b",
         "",
         operation,
         flags=re.IGNORECASE,
@@ -324,11 +334,10 @@ def shorten_operation_name(operation):
         flags=re.IGNORECASE,
     )
     operation = _clean_medical_text(operation)
+    operation = re.sub(r"\bмагистральных\s+(?=голени)", "", operation, flags=re.I)
     operation = re.sub(r"\s+\.", ".", operation)
     operation = re.sub(r"\s+", " ", operation).strip()
 
-    if len(operation) > 100:
-        operation = operation[:97].rstrip() + "..."
     return operation
 
 
@@ -509,14 +518,40 @@ def department_from_record_number(record_number):
     """Определяет отделение по началу номера карты."""
     if not record_number:
         return ""
-    if record_number.startswith("44"):
-        return "кардиология"
-    if record_number.startswith("42"):
-        return "рсц"
-    if record_number.startswith("26"):
-        return "сосудистая хирургия"
-    if record_number.startswith("179"):
-        return "неврология"
+    mappings = {
+        "12": "пит рсц",
+        "20": "гин/о",
+        "21": "прокт/х",
+        "22": "нейро/х",
+        "24": "гной/х",
+        "25": "пласт/х",
+        "26": "сос/х",
+        "27": "офт/о",
+        "28": "травм/о",
+        "29": "ур/о",
+        "30": "хир",
+        "31": "тор/х",
+        "33": "члх",
+        "40": "гемат/о",
+        "41": "к/о 0",
+        "42": "рсц",
+        "43": "невро/о",
+        "44": "к/о 1",
+        "45": "к/о 2",
+        "46": "пульм/о",
+        "47": "травм/о",
+        "49": "тер/о",
+        "51": "диализ/дн",
+        "60": "платное",
+        "165": "эндокр/о",
+        "179": "диализ/о",
+        "190": "реаб/о",
+    }
+    for prefix in sorted(mappings, key=len, reverse=True):
+        if str(record_number).startswith(prefix):
+            return mappings[prefix]
+    if re.match(r"^(?:2|3|6|7)(?:[-/]\d|$)", str(record_number)):
+        LOGGER.warning("Department code requires manual review: record=%s", record_number)
     return ""
 
 
@@ -524,7 +559,7 @@ def parse_operation_description(content):
     """Извлекает описание операции из протокола."""
     match = re.search(
         r"Описание\s+операции\s*:\s*(.*?)"
-        r"(?=\s*(?:Исход\s*:|Рек-но\s*:|Рекомендовано\s*:|"
+        r"(?=\s*(?:Исход\s*:|Рек-но\s*:|Рекомендации\s*:|Рекомендовано\s*:|"
         r"Расходные\s+материалы|Опер\.\s*:)|$)",
         content,
         flags=re.IGNORECASE | re.DOTALL,
@@ -553,6 +588,52 @@ def _compact_access_sentence(sentence):
     return f"Доступ: {access}{f', {size}' if size else ''}."
 
 
+def compact_clinical_text(text):
+    """Remove stock wording without changing findings, negation or measurements."""
+    text = re.sub(r"\s*[+=]\s*", " ", text)
+    text = re.sub(r"\b([МM][123])\s*-\s*([МM][123])\b", r"\1-\2", text)
+    text = re.sub(r"\b(правый|левый)\s+тип\s+кровоснабжения\b", r"\1 тип", text, flags=re.I)
+    text = re.sub(
+        r"\bгемодинамически\s+значимых\s+стенозов\s+не\s+выявлено",
+        "Значимых стенозов не выявлено",
+        text,
+        flags=re.I,
+    )
+    text = re.sub(
+        r"(?:АГ\s+)?признаков\s+поражения\s+коронарных\s+артерий,?\s*"
+        r"(?:гемодинамически\s+)?значимых\s+стенозов\s+не\s+выявлено",
+        "Значимых стенозов не выявлено",
+        text,
+        flags=re.I,
+    )
+    text = re.sub(
+        r"\b(?:выполнена\s+контрольная\s+АГ|на\s+контрольной\s+АГ)\s*[:,]?\s*", "", text, flags=re.I
+    )
+    # Negated findings ("не определяется") must retain their meaning.
+    text = re.sub(
+        r"(?<!не )\b(?:визуализируется|визуализируются|отмечается|отмечаются|определяется|определяются)\b",
+        "",
+        text,
+        flags=re.I,
+    )
+    text = re.sub(r"\bне\s+(?=[А-Яа-яЁё])", "не ", text)
+    text = _clean_medical_text(text)
+    return re.sub(r"(^|[.!?]\s+)([а-яё])", lambda m: m[1] + m[2].upper(), text)
+
+
+def split_protocol_sections(description):
+    """A missing explicit conclusion is empty, never a guessed paragraph."""
+    marker = re.search(
+        r"\b(?:в\s+ходе\s+исследования\s+выявлено|заключение)\s*:\s*", description, re.I
+    )
+    if not marker:
+        return shorten_operation_description(description), ""
+    return (
+        shorten_operation_description(description[: marker.start()]),
+        shorten_operation_description(description[marker.end() :]),
+    )
+
+
 def shorten_operation_description(description):
     """Сжимает описание операции, удаляя повторяющийся протокольный шаблон."""
     text = _clean_medical_text(description)
@@ -563,7 +644,13 @@ def shorten_operation_description(description):
     compacted = []
     seen = set()
     drop_patterns = (
+        r"^(?:время\s+(?:рентгеноскопии|скопии)|лучевая\s+нагрузка|ЭЭД)\b",
+        r"^гемостаз\.?$",
+        r"^(?:инструменты|катетер|интрод[ьъ]юс+ер|интродьюсер).*удален\w*(?:[.,]|$)",
+        r"^(?:наложена\s+)?(?:асептическая\s+давящая|давящая\s+асептическая)\s+повязка",
+        r"^(?:послойное\s+ушивание|шов\s+по\s+Донати)\b",
         r"^(?:поочередно\s+)?установлены\s+коронарные\s+диагностические\s+катетеры\b",
+        r"^установлен\s+коронарный\s+диагностический\s+катетер\b.*в\s+стандартных\s+проекциях",
         r"^далее\s+выполнена\s+церебральная\s+(?:пан)?ангиография\s+"
         r"в\s+стандартных\s+проекциях\b",
         r"^(?:инструменты\s+)?интродьюс+ер\w*\s+удален\w*.*"
@@ -572,8 +659,12 @@ def shorten_operation_description(description):
         r"^канюли\s+фиксированы\s+к\s+коже\s+лигатурой\b",
     )
     for sentence in sentences:
+        # Remove only routine closure sentences, never ones describing a complication.
+        adverse = re.search(r"кровотеч|гематом|осложнен|невозможно|не\s+удален", sentence, re.I)
         sentence = _compact_access_sentence(_clean_medical_text(sentence))
-        if any(re.search(pattern, sentence, flags=re.IGNORECASE) for pattern in drop_patterns):
+        if not adverse and any(
+            re.search(pattern, sentence, flags=re.IGNORECASE) for pattern in drop_patterns
+        ):
             continue
 
         sentence = re.sub(
@@ -602,6 +693,26 @@ def shorten_operation_description(description):
             flags=re.IGNORECASE,
         )
         sentence = _apply_operation_abbreviations(sentence)
+        sentence = re.sub(
+            r"^после\s+обработки\s+операционного\s+поля\s+под\s+МИА\s+.+?\s+проведен\s+разрез\s+",
+            "Разрез ",
+            sentence,
+            flags=re.I,
+        )
+        sentence = re.sub(
+            r"\(определена\s+протяженность\s+и\s+структура\s+атеросклеротической\s+бляшки,\s*подобрана\s+оптимальная\s+длина\s+и\s+оптимальный\s+диаметр\s+стента\)",
+            "",
+            sentence,
+            flags=re.I,
+        )
+        sentence = re.sub(r"\b(?:выполнен[ао]?\s+)?ВСУЗИ\b", "ВСУЗИ", sentence, flags=re.I)
+        sentence = re.sub(
+            r"\b(?:выполнено\s+)?заведение(?:м)?\s+коронарного\s+проводника\s+(?:поочередно\s+)?в\s+дистальное\s+русло\s+([^,]+),\s*затем\s*",
+            "",
+            sentence,
+            flags=re.I,
+        )
+        sentence = re.sub(r"\bпод\s+скопическим\s+контролем\s*", "", sentence, flags=re.I)
         sentence = re.sub(
             r"^(?:диагностическ\w*\s+катетер\w*\s+)?выполнена\s+АГ\b",
             "АГ",
@@ -645,7 +756,7 @@ def shorten_operation_description(description):
         seen.add(key)
         compacted.append(sentence.rstrip(".") + ".")
 
-    return _clean_medical_text(" ".join(compacted))
+    return compact_clinical_text(" ".join(compacted))
 
 
 def parse_recommendation(content):

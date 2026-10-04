@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import json
-import re
 import sys
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -20,25 +19,53 @@ REQUEST_TIMEOUT_SECONDS = 120
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from hospital_agent.clinical_terms import (  # noqa: E402
+    operation_type,
+    performed_assist_option,
+    performed_ivus,
+)
 from hospital_agent.services.operation_reports import (  # noqa: E402
     analyze_operation_file,
     iter_operation_files,
 )
 from hospital_agent.support.tls import verified_ssl_context  # noqa: E402
 
-OPERATION_TYPES = (
-    "ВСУЗИ",
-    "КАГ",
-    "ЦАГ",
-    "Стент кор",
-    "БАП кор",
-    "Стент ВСА",
-    "Стент в/к",
-    "Стент н/к",
-    "Аневризма",
-    "Инсульт",
-    "Голень",
-)
+OPERATION_LABELS = {
+    "каг": "КАГ",
+    "цаг": "ЦАГ",
+    "стент_кор": "СТЕНТ КОР",
+    "бап_кор": "БАП КОР",
+    "стент_вса": "СТЕНТ ВСА",
+    "стент_па": "СТЕНТ ПА",
+    "стент_вк": "СТЕНТ В/К",
+    "стент_нк": "СТЕНТ Н/К",
+    "стент_почки": "СТЕНТ ПОЧКИ",
+    "аневризма": "АНЕВРИЗМА",
+    "инсульт": "ИНСУЛЬТ",
+    "бап_голень": "Голень",
+    "бап_периферии": "БАП ПЕРИФ",
+    "бап_вса": "БАП ВСА",
+    "бап_фистулы": "БАП ФИСТУЛЫ",
+    "эма": "ЭМА",
+    "экс_2к": "ЭКС 2к",
+    "экс_1к": "ЭКС 1к",
+    "вэкс": "ВЭКС",
+    "экс_ревизия": "ЭКС РЕВ",
+    "экс": "ЭКС ПРОЧ",
+    "вабк": "ВАБК",
+    "тромбаспирация": "ТА/ТЭ",
+    "ангиография": "АНГИО",
+    "ангиография_периферии": "АНГИО ПЕРИФЕРИИ",
+    "эмболизация": "ЭМБОЛ",
+    "эмболизация_периферии": "ЭМБОЛИЗАЦИЯ ПЕРИФЕРИИ",
+    "экмо": "ЭКМО",
+    "фистулография": "ФИСТУЛОГР",
+    "стент_другие": "СТЕНТ ПРОЧ",
+    "бап_другие": "БАП ПРОЧ",
+    "другие": "ДРУГИЕ",
+}
+OPTION_TYPES = {"vabk": "ВАБК (доп.)", "ekmo": "ЭКМО (доп.)"}
+OPERATION_TYPES = ("ВСУЗИ", *OPERATION_LABELS.values(), *OPTION_TYPES.values())
 
 
 def _normalized(value: str) -> str:
@@ -46,42 +73,16 @@ def _normalized(value: str) -> str:
 
 
 def classify_historical_operation(operation: str, description: str = "") -> str:
-    """Классифицирует архивную операцию в одну динамическую колонку таблицы."""
-    value = _normalized(f"{operation} {description}")
-    has_stent = "стент" in value
-    has_bap = bool(re.search(r"\bбап\b|ангиопласт|баллон", value))
-
-    if re.search(r"\bэма\b|эмболизац\w*\s+(?:маточ|миом)", value):
-        return ""
-    if re.search(r"всузи|внутрисосудист", value):
-        return "ВСУЗИ"
-    if re.search(r"эмболизац\w*.{0,80}аневризм|аневризм\w*.{0,80}эмболизац", value):
-        return "Аневризма"
-    if re.search(r"тромб(?:о)?(?:аспирац|экстракц)|\bт[аэ]\b|механическ\w*\s+реканализац", value):
-        return "Инсульт"
-    if has_stent and re.search(r"\bвса\b|внутренн\w*\s+сонн", value):
-        return "Стент ВСА"
-    if has_stent and re.search(r"верхн\w*\s+конеч|подключ", value):
-        return "Стент в/к"
-    if has_stent and re.search(r"нижн\w*\s+конеч|\b[он]па\b|подвздош|бедрен", value):
-        return "Стент н/к"
-    if has_bap and re.search(r"голен|берцов|подколенн", value):
-        return "Голень"
-    if has_stent and re.search(r"\bкаг\b|коронар|\bпна\b|\bпка\b|\bоа\b|стлка", value):
-        return "Стент кор"
-    if has_bap and re.search(r"\bкаг\b|коронар|\bпна\b|\bпка\b|\bоа\b|стлка", value):
-        return "БАП кор"
-    if re.search(r"\bцаг\b|церебраль\w*\s+ангиограф", value):
-        return "ЦАГ"
-    if re.search(r"\bкаг\b|коронарограф", value):
-        return "КАГ"
-    return ""
+    """Использует тот же основной тип, что и отправляемые агентом протоколы."""
+    primary = operation_type(operation, description).lower().replace(" ", "_")
+    return OPERATION_LABELS.get(primary, "ДРУГИЕ")
 
 
 def build_statistics(root: Path, start_year: int) -> tuple[dict, int, int]:
     """Парсит архив штатным парсером агента и возвращает payload, успехи и пропуски."""
     counts: dict[int, Counter[str]] = defaultdict(Counter)
     identities: set[tuple[str, str, str]] = set()
+    totals: Counter[int] = Counter()
     parsed = 0
     skipped = 0
     for path in iter_operation_files([root]):
@@ -107,6 +108,14 @@ def build_statistics(root: Path, start_year: int) -> tuple[dict, int, int]:
             skipped += 1
             continue
         counts[year][operation_type] += 1
+        if performed_ivus(operation["operation"], operation.get("description", "")):
+            counts[year]["ВСУЗИ"] += 1
+        for option, label in OPTION_TYPES.items():
+            if performed_assist_option(
+                operation["operation"], operation.get("description", ""), option
+            ):
+                counts[year][label] += 1
+        totals[year] += 1
         parsed += 1
 
     end_year = max(counts, default=datetime.now().year)
@@ -116,9 +125,9 @@ def build_statistics(root: Path, start_year: int) -> tuple[dict, int, int]:
             operation_type: counts[year].get(operation_type, 0)
             for operation_type in OPERATION_TYPES
         }
-        years.append({"year": year, "counts": row, "total": sum(row.values())})
+        years.append({"year": year, "counts": row, "total": totals[year]})
     payload = {
-        "schema_version": 2,
+        "schema_version": 3,
         "source": str(root),
         "start_year": start_year,
         "end_year": end_year,

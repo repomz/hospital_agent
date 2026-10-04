@@ -6,18 +6,18 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from ..clinical_terms import operation_type, performed_assist_option, performed_ivus
 from ..config import AgentConfig, PollingConfig
 from ..http_client import ViewerClient
 from ..services.operation_reports import (
-    is_operation_docx_candidate,
     parse_operation_datetime,
     parse_operation_description,
     parse_operation_from_content,
     parse_patient_full_from_content,
     parse_recommendation,
     read_docx_text,
-    shorten_operation_description,
     shorten_operation_name,
+    split_protocol_sections,
 )
 from ..state import AgentState, save_state
 
@@ -42,7 +42,9 @@ def iter_protocol_files(operations_dirs: list[Path]) -> list[Path]:
             LOGGER.warning("Operations directory does not exist: %s", operations_dir)
             continue
         files.extend(
-            path for path in operations_dir.rglob("*") if is_operation_docx_candidate(path)
+            path
+            for path in operations_dir.rglob("*")
+            if path.is_file() and path.suffix.lower() == ".docx" and not path.name.startswith("~$")
         )
     return sorted(files)
 
@@ -130,43 +132,20 @@ def _normalize_text(value: str) -> str:
     return re.sub(r"\s+", " ", value.replace("\xa0", " ")).strip()
 
 
-def _protocol_conclusion(description: str) -> str:
-    """Возвращает только клиническое заключение без хода операции."""
-    normalized = _normalize_text(description)
-    marker = re.search(
-        r"\b(?:в\s+ходе\s+исследования\s+выявлено|заключение)\s*:\s*",
-        normalized,
-        flags=re.IGNORECASE,
-    )
-    if marker:
-        raw_conclusion = normalized[marker.end() :].strip(" .")
-    else:
-        diagnostic_sentences = [
-            sentence.strip()
-            for sentence in re.split(r"(?<=[.!?])\s+", normalized)
-            if re.search(
-                r"\b(?:выявлен\w*|стеноз\w*|окклюзи\w*|кровоток\w*|"
-                r"проходимост\w*|контроль\w*|осложнени\w*)\b",
-                sentence,
-                flags=re.IGNORECASE,
-            )
-        ]
-        raw_conclusion = " ".join(diagnostic_sentences) or normalized
-
-    conclusion = shorten_operation_description(raw_conclusion) or raw_conclusion
-    if conclusion:
-        conclusion = conclusion[:1].upper() + conclusion[1:]
-    return conclusion or "Заключение не выделено в исходном протоколе."
-
-
 def planned_recommendation(value: str) -> str:
     """Оставляет только рекомендацию, содержащую назначение в плановом порядке."""
     normalized = _normalize_text(value)
     if not re.search(r"\bв\s+планов\w*\s+порядк\w*\b", normalized, re.IGNORECASE):
         return ""
-    parts = re.split(r"(?<=[.!?;])\s+|\s+(?=\d+[.)]\s*)", normalized)
+    # Some documents place drug advice and the planned procedure on one line.
+    parts = re.split(
+        r"(?<=[.!?;])\s+|\s+(?=\d+[.)]\s*)|\s+[—–-]\s+",
+        normalized,
+    )
     selected = [
-        part.strip(" -;.")
+        re.sub(r"^\s*только\s+", "", re.sub(r"^\s*\d+[.)]\s*", "", part), flags=re.I)
+        .strip(" \"'«»“”")
+        .strip(" -;.")
         for part in parts
         if re.search(r"\bв\s+планов\w*\s+порядк\w*\b", part, re.IGNORECASE)
     ]
@@ -251,6 +230,13 @@ def compact_operation_name(value: str) -> str:
         _normalize_text(value),
         flags=re.IGNORECASE,
     )
+    value = re.sub(
+        r"\b(?:установк\w*|имплантац\w*)\s+(?:внутриаортальн\w*\s+)?(?:баллонн\w*\s+)?(?:контрпульсац\w*\s+)?(?:баллонн\w*\s+)?вабк\b",
+        "ВАБК",
+        value,
+        flags=re.IGNORECASE,
+    )
+    value = re.sub(r"\bвнутриаортальн\w*\s+ВАБК\b", "ВАБК", value, flags=re.I)
     return shorten_operation_name(value).strip(" .")
 
 
@@ -277,8 +263,12 @@ def department_from_record_number(record_number: str | None) -> str:
         "25": "пласт/х",
         "26": "сос/х",
         "28": "травм/о",
+        "27": "офт/о",
         "40": "гемат/о",
         "47": "травм/о",
+        "41": "к/о 0",
+        "51": "диализ/дн",
+        "165": "эндокр/о",
         "29": "ур/о",
         "30": "хир",
         "31": "тор/х",
@@ -296,6 +286,14 @@ def department_from_record_number(record_number: str | None) -> str:
     for prefix in sorted(department_codes, key=len, reverse=True):
         if record_number.startswith(prefix):
             return department_codes[prefix]
+    suspected_typo = re.match(r"^(2|3|6|7)(?:[-/]\d|$)", record_number)
+    if suspected_typo:
+        LOGGER.warning(
+            "Department code requires manual review: code=%s; record=%s",
+            suspected_typo.group(1),
+            record_number,
+        )
+        return ""
     LOGGER.warning("Unknown department code in medical record: %s", record_number)
     return ""
 
@@ -363,51 +361,7 @@ def normalize_surgeon(value: str) -> str:
 
 def classify_study_type(operation: str) -> str:
     """Нормализует известный тип или возвращает сокращенное название операции."""
-    value = _normalize_text(operation).lower().replace("ё", "е")
-    is_carotid = any(token in value for token in ("вса", "сонн", "каротид"))
-    is_peripheral = (
-        any(
-            token in value
-            for token in (
-                "перифер",
-                "нижн",
-                "пба",
-                "нпа",
-                "подвздош",
-                "бедрен",
-                "большеберц",
-                "малоберц",
-                "берцов",
-                "подколен",
-                "голен",
-            )
-        )
-        or re.search(r"\bнк\b", value) is not None
-    )
-
-    if re.search(r"двухкамер|\bdr\b", value) and re.search(r"\bэкс\b|кардиостим", value):
-        return "ЭКС DR"
-    if re.search(r"однокамер|\bsr\b", value) and re.search(r"\bэкс\b|кардиостим", value):
-        return "ЭКС SR"
-    if re.search(r"тромб(?:о)?(?:аспирац|экстракц)|\bт[аэ]\b", value):
-        return "тромбаспирация"
-    if "стент" in value:
-        if is_carotid:
-            return "стент_вса"
-        if is_peripheral:
-            return "стент_периферии"
-        return "стент_кор"
-    if any(token in value for token in ("бап", "ангиопласт", "ангилопласт", "баллон", "балон")):
-        if is_carotid:
-            return "бап_вса"
-        if is_peripheral:
-            return "бап_периферии"
-        return "бап_кор"
-    if any(token in value for token in ("цаг", "церебраль")):
-        return "цаг"
-    if any(token in value for token in ("каг", "коронарограф")):
-        return "каг"
-    return value.rstrip(" .")
+    return operation_type(operation)
 
 
 def parse_protocol(
@@ -417,9 +371,10 @@ def parse_protocol(
     fallback_study_id: str = "",
 ) -> dict[str, Any] | None:
     """Парсит DOCX-протокол операции в JSON StudyRequest для /studies."""
+    path = path.resolve()
     content = read_docx_text(path)
     if not content:
-        LOGGER.warning("Cannot read DOCX protocol: %s", path)
+        LOGGER.warning("Protocol rejected: empty or unreadable DOCX; file=%s", path.resolve())
         return None
 
     operation_datetime = parse_operation_datetime_flexible(content)
@@ -432,6 +387,9 @@ def parse_protocol(
         LOGGER.warning("Cannot parse operation name for %s", path)
         return None
     compact_operation = compact_operation_name(full_operation)
+    if re.search(r"карта\s+стационарного\s+больного", compact_operation, re.I):
+        LOGGER.warning("Operation title contains a document header: %s", path)
+        return None
     if not compact_operation:
         LOGGER.warning("Operation name became empty after normalization for %s", path)
         return None
@@ -451,27 +409,75 @@ def parse_protocol(
         )
         return None
 
-    study_type = classify_study_type(operation)
     raw_surgeon = parse_surgeon(content)
     surgeon = normalize_surgeon(raw_surgeon) or "не указано"
 
     record_number = parse_medical_record_number(content)
+    if record_number and re.match(r"^(?:2|3|6|7)(?:[-/]\d|$)", record_number):
+        LOGGER.warning(
+            "Department code requires manual review: record=%s; file=%s",
+            record_number,
+            path,
+        )
     description = parse_operation_description(content)
+    study_type = operation_type(compact_operation, description)
+    if study_type == "другие":
+        LOGGER.warning("Operation type requires review; name=%s; file=%s", compact_operation, path)
+    if not description:
+        LOGGER.warning("Incomplete protocol: operation description is missing; file=%s", path)
+    brief_description, conclusion = split_protocol_sections(description)
+    if re.search(r"тромб(?:о)?экстракц", description, re.I) and re.search(
+        r"ретривер", description, re.I
+    ):
+        compact_operation = re.sub(r"\bТА\b", "ТЭ", compact_operation)
+        compact_operation = re.sub(r"ТЭ\s*/\s*ТЭ", "ТЭ", compact_operation)
+    else:
+        compact_operation = re.sub(r"ТА\s*/\s*ТЭ", "ТА", compact_operation)
     recommendation = parse_recommendation(content)
-    return {
+    options = []
+    if performed_ivus(full_operation, description):
+        options.append("ivus")
+    if performed_assist_option(full_operation, description, "vabk"):
+        options.append("vabk")
+    if performed_assist_option(full_operation, description, "ekmo"):
+        options.append("ekmo")
+
+    payload = {
         "study_id": study_id,
         "patient": patient,
         "age": int(age) if str(age).isdigit() else 0,
         "department": department_from_record_number(record_number) or "не указано",
         "name_operation": compact_operation,
         "study_type": study_type,
-        "descr_operation": _protocol_conclusion(description),
+        "options": ",".join(options),
+        "conclusion": conclusion,
+        "description": brief_description,
         "recommendation": planned_recommendation(recommendation),
         "time_beginning": _rfc3339(operation_datetime),
         "time_duration": parse_operation_duration_min(content),
         "surgeon": surgeon,
         "dicom_link": "",
     }
+    if record_number and re.match(r"^(?:2|3|6|7)(?:[-/]\d|$)", record_number):
+        payload["department_review"] = record_number
+    rooms = set(re.findall(r"\bоперационн\w*\s*(?:№|N)?\s*([12])\b", content, re.I))
+    if len(rooms) == 1:
+        payload["room"] = int(rooms.pop())
+    elif len(rooms) > 1:
+        LOGGER.warning("Ambiguous operating room: both 1 and 2 found; file=%s", path)
+    # Only an explicitly labelled birth date or a date in the patient field.
+    from ..services.operation_reports import parse_birth_date_from_content, parse_date_value
+
+    birth = parse_birth_date_from_content(content)
+    if not birth:
+        match = re.search(
+            r"(?:дата\s+рождения|д\.?\s*р\.?)\s*:?\s*(\d{1,2}[./-]\d{1,2}[./-]\d{4})", content, re.I
+        )
+        birth = match[1] if match else ""
+    parsed_birth = parse_date_value(birth)
+    if parsed_birth and operation_datetime and parsed_birth <= operation_datetime.date():
+        payload["birth_date"] = parsed_birth.isoformat()
+    return payload
 
 
 def poll_operation_protocols(
