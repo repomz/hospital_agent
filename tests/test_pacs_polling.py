@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -13,13 +13,19 @@ from hospital_agent.state import AgentState
 
 
 class FrozenDatetime(datetime):
+    def astimezone(self, tz=None):
+        # DICOM fixture times are hospital local time, not the CI runner timezone.
+        hospital_tz = timezone(timedelta(hours=7))
+        value = self if self.tzinfo else self.replace(tzinfo=hospital_tz)
+        return datetime.astimezone(value, tz or hospital_tz)
+
     @classmethod
     def now(cls, tz=None):
         value = cls(2026, 7, 27, 10, 0, tzinfo=timezone.utc)
         return value if tz is not None else value.replace(tzinfo=None)
 
 
-class FrozenWednesdayDatetime(datetime):
+class FrozenWednesdayDatetime(FrozenDatetime):
     @classmethod
     def now(cls, tz=None):
         value = cls(2026, 7, 29, 10, 0, tzinfo=timezone.utc)
