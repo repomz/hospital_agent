@@ -59,7 +59,7 @@ def performed_ivus(name: str, description: str) -> bool:
 def performed_assist_option(name: str, description: str, option: str) -> bool:
     """Detect an actually used circulatory-support method as an option tag."""
     patterns = {
-        "vabk": r"\bвабк\b|внутриаортальн\w*\s+баллон\w*|контрпульсац",
+        "vabk": r"\bвабк\b|внутриаортальн\w*\s+баллон\w*|контр[ао]?пульсац",
         "ekmo": r"\bэкмо\b|экстракорпорал\w*\s+мембран\w*\s+оксигенац\w*",
     }
     pattern = patterns.get(option)

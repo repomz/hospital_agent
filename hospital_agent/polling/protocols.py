@@ -25,6 +25,7 @@ LOGGER = logging.getLogger("hospital_agent.protocols")
 STUDY_NAMESPACE = uuid.UUID("90153e75-8f87-4f1f-a874-6a0ef089cf68")
 MAX_PROCESSED_PROTOCOL_KEYS = 10000
 PROTOCOL_RECHECK_HOURS = (14, 23)
+PROTOCOL_SETTLE_SECONDS = 10
 
 
 def protocol_signature(path: Path) -> str:
@@ -63,10 +64,17 @@ def _protocol_uuid(path: Path, signature: str) -> uuid.UUID:
 
 def protocol_identity(payload: dict[str, Any]) -> str:
     """Возвращает ключ одной операции независимо от имени и расположения DOCX."""
+    raw_time = str(payload.get("time_beginning") or "").strip()
+    try:
+        parsed_time = datetime.fromisoformat(raw_time.replace("Z", "+00:00"))
+        if parsed_time.tzinfo is not None:
+            raw_time = parsed_time.astimezone(timezone.utc).isoformat()
+    except ValueError:
+        pass
     raw = "|".join(
         (
             " ".join(str(payload.get("patient") or "").casefold().replace("ё", "е").split()),
-            str(payload.get("time_beginning") or "").strip(),
+            raw_time,
             " ".join(str(payload.get("name_operation") or "").casefold().replace("ё", "е").split()),
         )
     )
@@ -500,10 +508,17 @@ def poll_operation_protocols(
     for path in files:
         try:
             signature = protocol_signature(path)
-        except OSError:
+            age = local_now.timestamp() - path.stat().st_mtime
+            if 0 <= age < PROTOCOL_SETTLE_SECONDS:
+                incomplete_scan = True
+                LOGGER.debug("Protocol is still being saved; deferred: file=%s", path)
+                continue
+        except OSError as exc:
             # Word or a user can move a file after directory enumeration.
             # Keep scanning other patients and retry this file next time.
-            LOGGER.exception("Cannot read protocol metadata: file=%s", path)
+            LOGGER.warning(
+                "Cannot read protocol metadata; retry next scan: file=%s error=%s", path, exc
+            )
             incomplete_scan = True
             continue
         state_key = str(path.resolve())
@@ -513,6 +528,17 @@ def poll_operation_protocols(
             continue
 
         payload = parse_protocol(path, config.agent_id)
+        try:
+            if protocol_signature(path) != signature:
+                incomplete_scan = True
+                LOGGER.info("Protocol changed during parsing; retry next scan: file=%s", path)
+                continue
+        except OSError as exc:
+            incomplete_scan = True
+            LOGGER.warning(
+                "Protocol unavailable after parsing; retry next scan: file=%s error=%s", path, exc
+            )
+            continue
         if payload is None:
             invalid += 1
             # Обычный polling не перечитывает неизменный ошибочный файл каждую

@@ -1,3 +1,4 @@
+import os
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -65,6 +66,15 @@ class ProtocolMappingTests(unittest.TestCase):
             protocol_identity(original),
             protocol_identity(shifted_copy),
         )
+
+    def test_protocol_identity_normalizes_equivalent_timezones(self):
+        payload = {
+            "patient": "Иванов Иван Иванович",
+            "time_beginning": "2026-09-24T14:20:00+07:00",
+            "name_operation": "КАГ",
+        }
+        backend_copy = {**payload, "time_beginning": "2026-09-24T07:20:00Z"}
+        self.assertEqual(protocol_identity(payload), protocol_identity(backend_copy))
 
     def test_study_id_allows_spaces_inside_operation_label(self):
         self.assertEqual(parse_study_id("О перация: 559"), "559")
@@ -262,6 +272,7 @@ class ProtocolMappingTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             paths = [root / "missing.docx", root / "remaining.docx"]
+            paths[1].write_bytes(b"document")
             config = SimpleNamespace(agent_id="2", state_file=root / "state.json")
             polling = PollingConfig(state=True, interval_min=1, operations_dirs=[root])
             state = AgentState()
@@ -269,7 +280,7 @@ class ProtocolMappingTests(unittest.TestCase):
                 patch("hospital_agent.polling.protocols.iter_protocol_files", return_value=paths),
                 patch(
                     "hospital_agent.polling.protocols.protocol_signature",
-                    side_effect=[FileNotFoundError("moved"), "signature"],
+                    side_effect=[FileNotFoundError("moved"), "signature", "signature"],
                 ),
                 patch(
                     "hospital_agent.polling.protocols.parse_protocol", return_value=None
@@ -285,6 +296,42 @@ class ProtocolMappingTests(unittest.TestCase):
                 )
             parser.assert_called_once_with(paths[1], "2")
             self.assertFalse(state.last_protocol_recheck_slot)
+
+    def test_recently_written_file_is_deferred_without_marking_processed(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "saving.docx"
+            path.write_bytes(b"unfinished zip")
+            now = datetime.now(timezone.utc)
+            os.utime(path, (now.timestamp(), now.timestamp()))
+            state = AgentState()
+            config = SimpleNamespace(agent_id="1", state_file=root / "state.json")
+            with patch("hospital_agent.polling.protocols.parse_protocol") as parser:
+                poll_operation_protocols(
+                    config, PollingConfig(True, 1, [root]), object(), state, now
+                )
+            parser.assert_not_called()
+            self.assertFalse(state.processed_protocols)
+            self.assertIsNone(state.last_protocol_recheck_slot)
+
+    def test_file_changed_while_parsing_is_not_sent_or_marked_processed(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "changing.docx"
+            path.write_bytes(b"before")
+            os.utime(path, (0, 0))
+            state = AgentState()
+            viewer = SimpleNamespace(post_json=MagicMock())
+            config = SimpleNamespace(agent_id="1", state_file=root / "state.json")
+
+            def parse(*args):
+                path.write_bytes(b"after saving changed content")
+                return {"study_id": "1"}
+
+            with patch("hospital_agent.polling.protocols.parse_protocol", side_effect=parse):
+                poll_operation_protocols(config, PollingConfig(True, 1, [root]), viewer, state)
+            viewer.post_json.assert_not_called()
+            self.assertFalse(state.processed_protocols)
 
     def test_changed_old_protocol_is_sent_for_backend_update(self):
         with TemporaryDirectory() as directory:

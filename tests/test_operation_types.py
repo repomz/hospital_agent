@@ -73,4 +73,5 @@ class OperationTypesTests(unittest.TestCase):
         self.assertEqual(operation_type("Смена ЭКС DR"), "ЭКС 2к")
         self.assertEqual(operation_type("Ревизия ложа ЭКС"), "ЭКС ревизия")
         self.assertEqual(operation_type("Установка ВАБК"), "ВАБК")
+        self.assertEqual(operation_type("Установка внутриаортальной контрапульсации"), "ВАБК")
         self.assertEqual(operation_type("Каротидография"), "цаг")

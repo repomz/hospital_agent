@@ -10,6 +10,16 @@ DEFAULT_REQUEST_TIMEOUT_SECONDS = 30
 DICOM_IMPORT_TIMEOUT_SECONDS = 1800
 
 
+def canonical_viewer_url(value: str) -> str:
+    """Migrate only known production IP URLs; retain custom/local installations."""
+    value = value.strip().rstrip("/")
+    for address in ("135.106.195.161", "135.106.130.37"):
+        for scheme in ("http", "https"):
+            if value == f"{scheme}://{address}/api":
+                return "https://angio.su/api"
+    return value
+
+
 @dataclass
 class PollingConfig:
     """Настройки одного polling-направления hospital_agent."""
@@ -82,7 +92,7 @@ def load_agent_config(path: str | Path = DEFAULT_CONFIG_PATH) -> AgentConfig:
     base_dir = config_path.parent
     with config_path.open("r", encoding="utf-8") as file:
         raw_config: dict[str, Any] = json.load(file)
-    viewer_url = str(raw_config["viewer_url"]).rstrip("/")
+    viewer_url = canonical_viewer_url(str(raw_config["viewer_url"]))
     if not viewer_url.startswith(("http://", "https://")):
         raise ValueError("viewer_url must start with http:// or https://")
     agent_id = str(raw_config.get("agent_id", "")).strip()

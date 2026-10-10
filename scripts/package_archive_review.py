@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Create a local review list and ZIP of excluded originals, without extracting paths."""
+
 import argparse
 import json
 import zipfile
@@ -32,10 +33,17 @@ def main():
     }
     prefix = args.report.with_suffix("")
     with prefix.with_suffix(".txt").open("w", encoding="utf-8") as out:
-        out.write("Файлы, не включённые в импорт. Дубликаты также перечислены с отдельной причиной.\n\n")
+        out.write(
+            "Файлы, не включённые в импорт. Дубликаты также перечислены с отдельной причиной.\n\n"
+        )
         for index, entry in enumerate(failures, 1):
-            out.write(f"{index}. {display_path(entry['source_document'])}\n   {reasons.get(entry['reason'], entry['reason'])}\n\n")
-    with zipfile.ZipFile(report["archive"]) as source, zipfile.ZipFile(str(prefix) + "_manual_review.zip", "w", zipfile.ZIP_DEFLATED) as target:
+            out.write(
+                f"{index}. {display_path(entry['source_document'])}\n   {reasons.get(entry['reason'], entry['reason'])}\n\n"
+            )
+    with (
+        zipfile.ZipFile(report["archive"]) as source,
+        zipfile.ZipFile(str(prefix) + "_manual_review.zip", "w", zipfile.ZIP_DEFLATED) as target,
+    ):
         included = set()
         target_names = set()
         for entry in failures:

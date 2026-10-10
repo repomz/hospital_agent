@@ -1,5 +1,7 @@
 import json
 import os
+import tempfile
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import RLock
@@ -115,9 +117,26 @@ def save_state(path: Path, state: AgentState) -> None:
             "last_report_date": state.last_report_date,
             "uploaded_log_hours": state.uploaded_log_hours,
         }
-        temporary_path = path.with_name(f".{path.name}.tmp")
-        with temporary_path.open("w", encoding="utf-8") as file:
-            json.dump(payload, file, ensure_ascii=False, indent=2)
-            file.flush()
-            os.fsync(file.fileno())
-        temporary_path.replace(path)
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+        )
+        temporary_path = Path(temporary_name)
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as file:
+                json.dump(payload, file, ensure_ascii=False, indent=2)
+                file.flush()
+                os.fsync(file.fileno())
+            for attempt in range(5):
+                try:
+                    os.replace(temporary_path, path)
+                    return
+                except PermissionError:
+                    if attempt == 4:
+                        raise
+                    # Windows antivirus/indexer locks can briefly block replace.
+                    time.sleep(0.05 * (2**attempt))
+        finally:
+            try:
+                temporary_path.unlink(missing_ok=True)
+            except OSError:
+                pass

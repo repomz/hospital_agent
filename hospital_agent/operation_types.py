@@ -143,6 +143,6 @@ def classify(name: str, description: str = "") -> str:
         return "цаг"
     if re.search(r"\bаг\b|ангиограф", value):
         return "ангиография периферии" if peripheral else "ангиография"
-    if re.search(r"вабк|контрпульс", value):
+    if re.search(r"вабк|контрпульс|контрапульсац", value):
         return "ВАБК"
     return "другие"

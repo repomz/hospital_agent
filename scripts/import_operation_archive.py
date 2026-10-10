@@ -112,7 +112,9 @@ def build_index(archive: Path, output: Path, report_path: Path) -> dict[str, Any
             if suffix not in (".doc", ".docx"):
                 counters["unsupported_skipped"] += 1
                 year_counts["unsupported_skipped"] += 1
-                failures.append({"source_document": info.filename, "reason": "unsupported file format"})
+                failures.append(
+                    {"source_document": info.filename, "reason": "unsupported file format"}
+                )
                 continue
 
             try:
@@ -122,7 +124,12 @@ def build_index(archive: Path, output: Path, report_path: Path) -> dict[str, Any
                     if not convert_legacy_doc(legacy_path, test_path):
                         counters["legacy_doc_skipped"] += 1
                         year_counts["legacy_doc_skipped"] += 1
-                        failures.append({"source_document": info.filename, "reason": "legacy DOC conversion failed"})
+                        failures.append(
+                            {
+                                "source_document": info.filename,
+                                "reason": "legacy DOC conversion failed",
+                            }
+                        )
                         continue
                     counters["legacy_doc_converted"] += 1
                     year_counts["legacy_doc_converted"] += 1
@@ -148,7 +155,12 @@ def build_index(archive: Path, output: Path, report_path: Path) -> dict[str, Any
             operation_year = str(payload["time_beginning"])[:4]
             if not operation_year.isdigit() or not 2015 <= int(operation_year) <= 2025:
                 counters["out_of_range_skipped"] += 1
-                failures.append({"source_document": info.filename, "reason": f"operation year {operation_year} outside 2015-2025"})
+                failures.append(
+                    {
+                        "source_document": info.filename,
+                        "reason": f"operation year {operation_year} outside 2015-2025",
+                    }
+                )
                 continue
             if payload.get("department_review"):
                 department_reviews.append(
@@ -172,14 +184,29 @@ def build_index(archive: Path, output: Path, report_path: Path) -> dict[str, Any
                     continue
 
             identity = protocol_identity(payload)
-            if str(payload.get("name_operation", "")).strip().casefold() in ("плановая", "экстренная", "плановое", "экстренное"):
+            if str(payload.get("name_operation", "")).strip().casefold() in (
+                "плановая",
+                "экстренная",
+                "плановое",
+                "экстренное",
+            ):
                 counters["failed"] += 1
-                failures.append({"source_document": info.filename, "reason": "urgency recognized instead of operation name; manual review required"})
+                failures.append(
+                    {
+                        "source_document": info.filename,
+                        "reason": "urgency recognized instead of operation name; manual review required",
+                    }
+                )
                 continue
             if identity in identities:
                 counters["duplicates_skipped"] += 1
                 year_counts["duplicates_skipped"] += 1
-                failures.append({"source_document": info.filename, "reason": "duplicate protocol identity (not uploaded twice)"})
+                failures.append(
+                    {
+                        "source_document": info.filename,
+                        "reason": "duplicate protocol identity (not uploaded twice)",
+                    }
+                )
                 continue
             identities.add(identity)
             destination.write(

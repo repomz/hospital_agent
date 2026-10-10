@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Read-only reconciliation of an archive JSONL with the deployed PostgreSQL DB."""
+
 import argparse
 import datetime as dt
 import json
@@ -12,7 +13,11 @@ def key(record):
     when = dt.datetime.fromisoformat(record["time_beginning"].replace("Z", "+00:00"))
     if when.tzinfo is None:
         when = when.replace(tzinfo=dt.timezone.utc)
-    return (record["patient"].strip().lower(), when.astimezone(dt.timezone.utc).isoformat(), record["name_operation"].strip().lower())
+    return (
+        record["patient"].strip().lower(),
+        when.astimezone(dt.timezone.utc).isoformat(),
+        record["name_operation"].strip().lower(),
+    )
 
 
 def main():
@@ -21,7 +26,21 @@ def main():
     parser.add_argument("report", type=Path)
     args = parser.parse_args()
     sql = "SELECT row_to_json(s) FROM studies s WHERE NOT deleted AND time_beginning >= '2015-01-01' AND time_beginning < '2026-01-01'"
-    raw = subprocess.check_output(["docker", "exec", "viewer-postgres-1", "psql", "-U", "viewer", "-d", "viewer", "-Atc", sql], text=True)
+    raw = subprocess.check_output(
+        [
+            "docker",
+            "exec",
+            "viewer-postgres-1",
+            "psql",
+            "-U",
+            "viewer",
+            "-d",
+            "viewer",
+            "-Atc",
+            sql,
+        ],
+        text=True,
+    )
     records = [json.loads(line) for line in raw.splitlines() if line.strip()]
     database = {key(record): record for record in records}
     mismatches = []
@@ -35,7 +54,15 @@ def main():
         if actual is None:
             fields = ["missing"]
         else:
-            for name in ("study_id", "patient", "department", "name_operation", "options", "description", "recommendation"):
+            for name in (
+                "study_id",
+                "patient",
+                "department",
+                "name_operation",
+                "options",
+                "description",
+                "recommendation",
+            ):
                 if actual.get(name) != expected.get(name):
                     fields.append(name)
             for name in ("study_type", "surgeon"):
@@ -54,9 +81,16 @@ def main():
                 fields.append("birth_date")
         if fields:
             mismatches.append({"source_document": document["source_document"], "fields": fields})
-    report = {"checked": checked, "database_archive_rows": len(records), "unique_database_records": len(database), "mismatches": mismatches,
-              "years": dict(sorted(Counter(r["time_beginning"][:4] for r in records).items()))}
-    args.report.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    report = {
+        "checked": checked,
+        "database_archive_rows": len(records),
+        "unique_database_records": len(database),
+        "mismatches": mismatches,
+        "years": dict(sorted(Counter(r["time_beginning"][:4] for r in records).items())),
+    }
+    args.report.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     print(json.dumps({**report, "mismatches": len(mismatches)}, ensure_ascii=False))
     return int(bool(mismatches) or len(records) != checked)
 

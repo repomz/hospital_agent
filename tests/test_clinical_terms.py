@@ -1,9 +1,18 @@
 import unittest
 
-from hospital_agent.clinical_terms import normalize_terms, operation_type, performed_ivus
+from hospital_agent.clinical_terms import (
+    normalize_terms,
+    operation_type,
+    performed_assist_option,
+    performed_ivus,
+)
 
 
 class ClinicalTermsTests(unittest.TestCase):
+    def test_counterpulsation_spelling_variants(self):
+        for spelling in ("контрпульсация", "контрапульсация", "контропульсация"):
+            self.assertTrue(performed_assist_option("", "Выполнена " + spelling, "vabk"))
+
     def test_ivus_variants(self):
         for value in (
             "ВСУЗИ",
