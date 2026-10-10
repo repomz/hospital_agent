@@ -35,8 +35,12 @@ def main():
         if actual is None:
             fields = ["missing"]
         else:
-            for name in ("study_id", "patient", "department", "name_operation", "study_type", "options", "description", "recommendation", "surgeon"):
+            for name in ("study_id", "patient", "department", "name_operation", "options", "description", "recommendation"):
                 if actual.get(name) != expected.get(name):
+                    fields.append(name)
+            for name in ("study_type", "surgeon"):
+                # StudyRequest.Validate canonicalizes these fields to lower case.
+                if actual.get(name) != str(expected.get(name, "")).strip().lower():
                     fields.append(name)
             for name in ("age", "time_duration"):
                 # Domain maps an unknown zero value to SQL NULL.
