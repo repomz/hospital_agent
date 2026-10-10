@@ -35,8 +35,12 @@ def main():
         if actual is None:
             fields = ["missing"]
         else:
-            for name in ("study_id", "patient", "age", "department", "name_operation", "study_type", "options", "description", "recommendation", "surgeon"):
+            for name in ("study_id", "patient", "department", "name_operation", "study_type", "options", "description", "recommendation", "surgeon"):
                 if actual.get(name) != expected.get(name):
+                    fields.append(name)
+            for name in ("age", "time_duration"):
+                # Domain maps an unknown zero value to SQL NULL.
+                if (actual.get(name) or 0) != (expected.get(name) or 0):
                     fields.append(name)
             if actual.get("descr_operation", "") != expected.get("conclusion", ""):
                 fields.append("conclusion")
