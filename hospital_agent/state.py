@@ -26,6 +26,7 @@ class AgentState:
     yandex_cleanup: list[dict[str, Any]] = field(default_factory=list)
     last_report_date: str | None = None
     uploaded_log_hours: dict[str, str] = field(default_factory=dict)
+    reconciliation: dict[str, Any] = field(default_factory=dict)
     lock: Any = field(default_factory=RLock, repr=False, compare=False)
 
 
@@ -96,6 +97,9 @@ def load_state(path: Path) -> AgentState:
         uploaded_log_hours={
             str(key): str(value) for key, value in raw.get("uploaded_log_hours", {}).items()
         },
+        reconciliation=raw.get("reconciliation", {})
+        if isinstance(raw.get("reconciliation"), dict)
+        else {},
     )
 
 
@@ -116,6 +120,7 @@ def save_state(path: Path, state: AgentState) -> None:
             "yandex_cleanup": state.yandex_cleanup,
             "last_report_date": state.last_report_date,
             "uploaded_log_hours": state.uploaded_log_hours,
+            "reconciliation": state.reconciliation,
         }
         descriptor, temporary_name = tempfile.mkstemp(
             prefix=f".{path.name}.", suffix=".tmp", dir=path.parent

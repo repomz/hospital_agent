@@ -21,6 +21,10 @@ def _load_hospital_agent_package() -> None:
 
 def main() -> None:
     """Запускает hospital_agent с настройками из agent_config.json."""
+    import os
+    if not os.environ.get("VIEWER_AGENT_CHILD"):
+        from agent_launcher import main as launch
+        raise SystemExit(launch())
     _load_hospital_agent_package()
     from hospital_agent.app import main as app_main
 

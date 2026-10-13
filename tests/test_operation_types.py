@@ -75,3 +75,14 @@ class OperationTypesTests(unittest.TestCase):
         self.assertEqual(operation_type("Установка ВАБК"), "ВАБК")
         self.assertEqual(operation_type("Установка внутриаортальной контрапульсации"), "ВАБК")
         self.assertEqual(operation_type("Каротидография"), "цаг")
+
+    def test_counterpulsation_variants_preserve_coronary_priority(self):
+        for spelling in ("контрпульсации", "контрапульсации", "контропульсации"):
+            for name, expected in (
+                (f"Установка внутриаортальной {spelling}", "ВАБК"),
+                (f"КАГ. Установка внутриаортальной {spelling}", "каг"),
+                (f"Стент ПКА. Установка внутриаортальной {spelling}", "стент_кор"),
+                (f"БАП ПКА. Установка внутриаортальной {spelling}", "бап_кор"),
+            ):
+                with self.subTest(name=name):
+                    self.assertEqual(operation_type(name), expected)

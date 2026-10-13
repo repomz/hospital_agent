@@ -205,6 +205,26 @@ class ProtocolMappingTests(unittest.TestCase):
         )
         self.assertEqual(payload["surgeon"], "петров")
 
+    def test_counterpulsation_payload_does_not_require_type_review(self):
+        for spelling in ("контрпульсации", "контрапульсации", "контропульсации"):
+            content = (
+                f"Операция: 77 Установка внутриаортальной {spelling}\n"
+                "Дата и время операции: 22.01.2026 10:30\n"
+                "Ф.И.О. больного: Иванов Иван Иванович, возраст 64\n"
+                "Описание операции: Установлен баллон ВАБК. "
+                "Исход: удовлетворительный\n"
+                "Опер.:_______Петров А.Б."
+            )
+            with (
+                self.subTest(spelling=spelling),
+                patch("hospital_agent.polling.protocols.read_docx_text", return_value=content),
+                patch("hospital_agent.polling.protocols.LOGGER.warning") as warning,
+            ):
+                payload = parse_protocol(Path("protocol.docx"), "1")
+                self.assertEqual(payload["study_type"], "ВАБК")
+                self.assertEqual(payload["options"], "vabk")
+                warning.assert_not_called()
+
     def test_protocol_uses_placeholder_when_surgeon_is_missing(self):
         content = (
             "Операция: 738 Операционная №1. Коронарография\n"

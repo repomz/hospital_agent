@@ -523,6 +523,13 @@ def poll_operation_protocols(
             continue
         state_key = str(path.resolve())
         previous_signature = state.processed_protocols.get(state_key)
+        if state.reconciliation.get("blocked", {}).get(state_key) == signature:
+            continue  # An ambiguous server match requires explicit manual review.
+        if state_key in state.reconciliation.get("blocked", {}):
+            state.reconciliation["complete"] = False
+            state.reconciliation.get("files", {}).pop(state_key, None)
+            save_state(config.state_file, state)
+            return sent_count  # Reconcile corrected conflicts before attempting an upload.
         signature_changed = bool(previous_signature and previous_signature != signature)
         if previous_signature == signature and not force_recheck:
             continue

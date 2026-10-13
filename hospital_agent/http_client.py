@@ -71,3 +71,19 @@ class ViewerClient:
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             LOGGER.warning("GET %s returned invalid JSON: %s", url, exc)
             return None
+
+    def post_json_response(self, endpoint: str, payload: dict[str, Any]) -> Any | None:
+        request = Request(
+            self.base_url + endpoint,
+            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urlopen(
+                request, timeout=self.timeout_seconds, context=verified_ssl_context()
+            ) as response:
+                return json.load(response)
+        except (OSError, HTTPException, ValueError) as exc:
+            LOGGER.warning("Reconciliation request failed: %s", exc)
+            return None

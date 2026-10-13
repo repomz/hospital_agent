@@ -20,3 +20,4 @@ agent_logs.txt
 .ruff_cache/
 .coverage
 htmlcov/
+.updates/

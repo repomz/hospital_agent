@@ -1,9 +1,11 @@
 import logging
+import os
 import signal
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Callable
 
 from .config import DEFAULT_REQUEST_TIMEOUT_SECONDS, AgentConfig, PollingConfig
@@ -17,6 +19,7 @@ from .polling.pacs_studies import (
 )
 from .polling.protocols import poll_operation_protocols
 from .polling.user_requests import poll_user_requests
+from .reconciliation import reconcile_year
 from .state import AgentState, load_state
 
 LOGGER = logging.getLogger("hospital_agent")
@@ -62,7 +65,11 @@ def _build_runtimes(
         PollingRuntime(
             "protocols",
             config.study_polling,
-            lambda: poll_operation_protocols(config, config.study_polling, viewer, state),
+            lambda: (
+                poll_operation_protocols(config, config.study_polling, viewer, state)
+                if reconcile_year(config, viewer, state, lambda: not _running)
+                else 0
+            ),
         ),
         PollingRuntime(
             "ct",
@@ -150,6 +157,8 @@ def run_agent(config: AgentConfig) -> int:
     state = load_state(config.state_file)
     viewer = ViewerClient(config.viewer_url, DEFAULT_REQUEST_TIMEOUT_SECONDS)
     runtimes = _build_runtimes(config, viewer, state)
+    if os.environ.get("VIEWER_AGENT_READY"):
+        Path(os.environ["VIEWER_AGENT_READY"]).touch()
     alive_interval = max(config.alive_polling_interval_min * 60, 1)
     next_alive_at = 0.0
 
@@ -161,6 +170,12 @@ def run_agent(config: AgentConfig) -> int:
     )
     with ThreadPoolExecutor(max_workers=len(runtimes)) as executor:
         while _running:
+            if (
+                os.environ.get("VIEWER_AGENT_STOP")
+                and Path(os.environ["VIEWER_AGENT_STOP"]).exists()
+            ):
+                _running = False
+                break
             now_monotonic = time.monotonic()
             if now_monotonic >= next_alive_at:
                 disable_expired_polling(config, state)
