@@ -34,7 +34,7 @@ class RemoteConfigTests(unittest.TestCase):
     def test_persists_and_updates_existing_runtime_objects(self):
         polling = self.config.study_polling
         apply_remote_configuration(self.config, self.changes)
-        result = json.loads(self.path.read_text())
+        result = json.loads(self.path.read_text(encoding="utf-8"))
         self.assertEqual(result["custom"], 123)
         self.assertEqual(result["version"], "0.2.15")
         self.assertEqual(result["agent_id"], "2")
