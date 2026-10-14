@@ -59,6 +59,78 @@ def canonical_viewer_url(value: str) -> str:
     return value
 
 
+def apply_remote_configuration(config: "AgentConfig", changes: dict) -> None:
+    """Validate the entire edit, persist atomically, then update live polling objects."""
+    names = ("study_polling", "xa_polling", "ct_polling", "user_requests_polling")
+    if set(changes) != {"description", "heartbeat_interval_min", *names}:
+        raise ValueError("Unsupported or missing configuration fields")
+
+    def interval(value, low=0.25, high=1440):
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not low <= value <= high
+        ):
+            raise ValueError("Invalid polling interval")
+        return float(value)
+
+    heartbeat = interval(changes["heartbeat_interval_min"], 1, 60)
+    if not isinstance(changes["description"], str) or len(changes["description"]) > 200:
+        raise ValueError("Invalid description")
+    for name in names:
+        p = changes[name]
+        allowed = (
+            {"state", "interval_min", "operations_dir"}
+            if name == "study_polling"
+            else {"state", "interval_min"}
+        )
+        if not isinstance(p, dict) or set(p) - allowed or not isinstance(p.get("state"), bool):
+            raise ValueError("Invalid polling settings")
+        interval(p.get("interval_min"))
+    if not changes["user_requests_polling"]["state"]:
+        raise ValueError("Command polling cannot be disabled remotely")
+    dirs = changes["study_polling"].get("operations_dir", [])
+    if (
+        not isinstance(dirs, list)
+        or len(dirs) > 20
+        or (changes["study_polling"]["state"] and not dirs)
+    ):
+        raise ValueError("Specify protocol directories")
+    resolved = []
+    for value in dirs:
+        if not isinstance(value, str) or not value.strip() or len(value) > 1024:
+            raise ValueError("Invalid protocol directory")
+        path = _resolve_local_path(config.config_path.parent, value)
+        if not path.is_dir():
+            raise ValueError(f"Protocol directory is unavailable: {value}")
+        resolved.append(path)
+    with config.lock:
+        raw = json.loads(config.config_path.read_text(encoding="utf-8"))
+        raw["description"] = changes["description"]
+        raw["alive_polling_interval_min"] = heartbeat
+        for name in names:
+            raw[name] = {**raw.get(name, {}), **changes[name]}
+        raw["study_polling"].pop("operations_dirs", None)
+        raw["study_polling"]["operations_dir"] = dirs
+        raw["updated_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
+        temporary = config.config_path.with_name(".remote-config.tmp")
+        try:
+            with temporary.open("w", encoding="utf-8") as file:
+                json.dump(raw, file, ensure_ascii=False, indent=2)
+                file.flush()
+                os.fsync(file.fileno())
+            os.replace(temporary, config.config_path)
+        finally:
+            temporary.unlink(missing_ok=True)
+        config.description = changes["description"]
+        config.alive_polling_interval_min = heartbeat
+        for name in names:
+            polling = getattr(config, name)
+            polling.state = changes[name]["state"]
+            polling.interval_min = float(changes[name]["interval_min"])
+        config.study_polling.operations_dirs = resolved
+
+
 @dataclass
 class PollingConfig:
     """Настройки одного polling-направления hospital_agent."""

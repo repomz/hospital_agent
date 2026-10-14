@@ -36,6 +36,7 @@ class PollingRuntime:
     run: Callable[[], object]
     next_run_at: float = 0.0
     future: Future[object] | None = None
+    scheduled_interval: float | None = None
 
 
 def request_stop(signum: int, frame: object) -> None:
@@ -134,6 +135,9 @@ def _schedule_runtimes(
     """Запускает due-runtime параллельно, не допуская перекрытия одного направления."""
     for runtime in runtimes:
         _collect_runtime(runtime)
+        if runtime.scheduled_interval != runtime.config.interval_min:
+            runtime.scheduled_interval = runtime.config.interval_min
+            runtime.next_run_at = 0.0
         if not runtime.config.state:
             runtime.next_run_at = 0.0
             continue
@@ -160,7 +164,6 @@ def run_agent(config: AgentConfig) -> int:
     runtimes = _build_runtimes(config, viewer, state)
     if os.environ.get("VIEWER_AGENT_READY"):
         Path(os.environ["VIEWER_AGENT_READY"]).touch()
-    alive_interval = max(config.alive_polling_interval_min * 60, 1)
     next_alive_at = 0.0
     next_launcher_check = 0.0
 
@@ -194,7 +197,7 @@ def run_agent(config: AgentConfig) -> int:
                     send_alive(config, viewer)
                 except Exception:
                     LOGGER.exception("Heartbeat failed")
-                next_alive_at = now_monotonic + alive_interval
+                next_alive_at = now_monotonic + max(config.alive_polling_interval_min * 60, 1)
 
             _schedule_runtimes(runtimes, executor, now_monotonic)
 

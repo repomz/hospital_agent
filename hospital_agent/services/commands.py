@@ -9,7 +9,12 @@ from typing import Any
 
 from pydicom.uid import UID
 
-from ..config import DICOM_IMPORT_TIMEOUT_SECONDS, AgentConfig, update_polling_state
+from ..config import (
+    DICOM_IMPORT_TIMEOUT_SECONDS,
+    AgentConfig,
+    apply_remote_configuration,
+    update_polling_state,
+)
 from ..http_client import ViewerClient
 from ..state import AgentState, save_state
 
@@ -39,6 +44,26 @@ def execute_user_command(
     state: AgentState | None = None,
 ) -> dict[str, Any] | None:
     """Выполняет команду backend по каноническому полю command."""
+    if command == "update_agent_config":
+        changes = payload.get("configuration")
+        if not isinstance(changes, dict) or state is None:
+            raise ValueError("configuration and state are required")
+        previous_dirs = list(config.study_polling.operations_dirs or [])
+        apply_remote_configuration(config, changes)
+        with state.lock:
+            if previous_dirs != config.study_polling.operations_dirs:
+                state.reconciliation = {}
+            for modality in ("XA", "CT"):
+                if not getattr(config, modality.lower() + "_polling").state:
+                    state.polling_enabled_at.pop(modality, None)
+                elif modality not in state.polling_enabled_at:
+                    state.polling_enabled_at[modality] = datetime.now(timezone.utc).isoformat()
+            save_state(config.state_file, state)
+        if viewer:
+            from ..polling.alive import send_alive
+
+            send_alive(config, viewer)
+        return {"applied": True, "configuration": changes}
     if command in {FIND_XA, FIND_CT}:
         return find_dicom_studies(config, payload, modality=command.removeprefix("find_").upper())
     if command in {GET_XA, GET_CT, SEND_XA_TO_PACS, SEND_CT_TO_PACS}:
