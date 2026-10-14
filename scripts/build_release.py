@@ -5,6 +5,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import sys
 import zipfile
 from pathlib import Path
@@ -44,6 +45,11 @@ def main():
         return
     if public != PUBLIC_KEY:
         raise ValueError("signing key does not match pinned launcher key")
+    project_version = re.search(
+        r'^version = "([\d.]+)"', (ROOT / "pyproject.toml").read_text(encoding="utf-8"), re.M
+    )[1]
+    if code_version(ROOT) != project_version:
+        raise ValueError("package and project versions differ; release not built")
     args.output.mkdir(parents=True, exist_ok=True)
     code = sorted((ROOT / "hospital_agent").rglob("*.py")) + [
         ROOT / "hospital_agent.py",
