@@ -61,8 +61,33 @@ class ReconciliationTests(unittest.TestCase):
         viewer.post_json.assert_not_called()
         self.assertIn(str(path), state.reconciliation["blocked"])
         self.assertIn(
-            "Неоднозначное", (root / "protocol_review.csv").read_text(encoding="utf-8-sig")
+            "неоднозначное", (root / "protocol_review.csv").read_text(encoding="utf-8-sig")
         )
+
+    def test_upgrade_revisits_blocked_files_without_touching_other_state(self):
+        _, path, config, viewer, state, _ = self.run_case("review")
+        state.reconciliation.pop("revision")
+        state.processed_user_request_ids.append("keep-request")
+        viewer.post_json_response.return_value = {"statuses": ["present"]}
+        payload = {
+            "study_id": "1",
+            "patient": "Иванов Иван Иванович",
+            "room": 1,
+            "name_operation": "КАГ",
+            "time_beginning": datetime.now().astimezone().replace(hour=0, minute=0).isoformat(),
+        }
+        with (
+            patch("hospital_agent.reconciliation.parse_protocol", return_value=payload),
+            patch("hospital_agent.reconciliation.time.sleep"),
+        ):
+            self.assertTrue(reconcile_year(config, viewer, state))
+        self.assertNotIn(str(path), state.reconciliation["blocked"])
+        self.assertNotIn(str(path), state.reconciliation["review"])
+        self.assertEqual(state.processed_user_request_ids, ["keep-request"])
+        viewer.post_json.assert_not_called()
+        self.assertEqual(viewer.post_json_response.call_count, 2)
+        self.assertTrue(reconcile_year(config, viewer, state))
+        self.assertEqual(viewer.post_json_response.call_count, 2)
 
     def test_offline_never_blindly_uploads(self):
         _, _, _, viewer, _, result = self.run_case(None)

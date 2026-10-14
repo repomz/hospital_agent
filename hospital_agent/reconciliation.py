@@ -16,6 +16,7 @@ from .polling.protocols import (
 from .state import save_state
 
 LOGGER = logging.getLogger("hospital_agent.reconciliation")
+RECONCILIATION_REVISION = 2
 
 
 def write_review(config, state):
@@ -39,6 +40,13 @@ def reconcile_year(config, viewer, state, stopping=lambda: False):
         if state.reconciliation.get("year") != year:
             state.reconciliation = {"year": year, "files": {}, "review": {}, "complete": False}
         sync = state.reconciliation
+        if sync.get("revision") != RECONCILIATION_REVISION:
+            # Revisit unresolved files once after the server matching fix. Keep
+            # confirmed receipts and all independent XA/request state intact.
+            for key in set(sync.get("review", {})) | set(sync.get("blocked", {})):
+                sync["files"].pop(key, None)
+            sync["revision"] = RECONCILIATION_REVISION
+            sync["complete"] = False
     if sync.get("complete"):
         return True
     dirs = config.study_polling.operations_dirs or []
@@ -101,7 +109,9 @@ def reconcile_year(config, viewer, state, stopping=lambda: False):
                 continue
             if status == "review":
                 sync["review"][key] = (
-                    "Неоднозначное совпадение или не указан номер операционной; не отправлен"
+                    "Наличие точного протокола в базе не подтверждено: неоднозначное совпадение "
+                    "или неизвестная операционная. Повторная отправка заблокирована; "
+                    "это не означает отсутствия протокола в базе"
                 )
                 sync.setdefault("blocked", {})[key] = signature
                 LOGGER.warning(
@@ -113,6 +123,11 @@ def reconcile_year(config, viewer, state, stopping=lambda: False):
                 sync["review"].pop(key, None)
                 remember(path, signature, payload)
                 verified.add(protocol_identity(payload))
+                LOGGER.info(
+                    "Protocol confirmed in server database; upload skipped: study_id=%s file=%s",
+                    payload["study_id"],
+                    path,
+                )
             elif protocol_identity(payload) in verified:
                 remember(path, signature, payload)
             elif viewer.post_json("/studies", payload):
