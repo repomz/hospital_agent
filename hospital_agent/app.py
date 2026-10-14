@@ -9,7 +9,7 @@ from typing import Callable
 from dotenv import load_dotenv
 
 from . import __version__
-from .config import DEFAULT_CONFIG_PATH, AgentConfig, load_agent_config
+from .config import DEFAULT_CONFIG_PATH, AgentConfig, load_agent_config, record_agent_version
 from .runner import run_agent
 
 RUNTIME_RESTART_DELAY_SECONDS = 10
@@ -187,6 +187,12 @@ def main() -> None:
         raise
 
     setup_logging(config.log_dir, background, config.agent_id)
+    try:
+        record_agent_version(config, __version__)
+    except (OSError, ValueError):
+        logging.getLogger("hospital_agent.startup").exception(
+            "Cannot record running version in config; agent continues: file=%s", config_path
+        )
     logging.getLogger("hospital_agent.startup").info(
         "Agent version=%s; Logging mode=%s",
         __version__,

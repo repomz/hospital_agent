@@ -1,6 +1,8 @@
 import json
 import os
+import tempfile
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path, PureWindowsPath
 from threading import RLock
 from typing import Any
@@ -8,6 +10,43 @@ from typing import Any
 DEFAULT_CONFIG_PATH = Path("agent_config.json")
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 30
 DICOM_IMPORT_TIMEOUT_SECONDS = 1800
+
+
+def record_agent_version(config: "AgentConfig", version: str) -> None:
+    """Record the running code version without replacing user configuration."""
+    with config.lock:
+        raw = json.loads(config.config_path.read_text(encoding="utf-8"))
+        original = raw.copy()
+        if "updated_at" not in raw:
+            raw["updated_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
+        ordered = {}
+        for key, value in raw.items():
+            if key == "version":
+                continue
+            ordered[key] = value
+            if key == "updated_at":
+                ordered["version"] = version
+        if list(original.items()) == list(ordered.items()):
+            return
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=config.config_path.parent,
+                prefix=".agent-version-",
+                suffix=".tmp",
+                delete=False,
+            ) as file:
+                temporary = Path(file.name)
+                json.dump(ordered, file, ensure_ascii=False, indent=2)
+                file.write("\n")
+                file.flush()
+                os.fsync(file.fileno())
+            os.replace(temporary, config.config_path)
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
 
 
 def canonical_viewer_url(value: str) -> str:
