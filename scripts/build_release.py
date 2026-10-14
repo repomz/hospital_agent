@@ -59,6 +59,7 @@ def main():
     with zipfile.ZipFile(package, "w", zipfile.ZIP_DEFLATED) as archive:
         for path in code:
             archive.write(path, path.relative_to(ROOT).as_posix())
+        archive.write(ROOT / "agent_launcher.py", "hospital_agent/support/launcher_update.py")
     content = package.read_bytes()
     release = {
         "version": code_version(ROOT),
@@ -91,6 +92,7 @@ def main():
             )
         ]:
             archive.write(path, path.relative_to(ROOT).as_posix())
+        archive.write(ROOT / "agent_launcher.py", "hospital_agent/support/launcher_update.py")
     print(
         json.dumps(
             {

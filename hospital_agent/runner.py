@@ -21,6 +21,7 @@ from .polling.protocols import poll_operation_protocols
 from .polling.user_requests import poll_user_requests
 from .reconciliation import reconcile_year
 from .state import AgentState, load_state
+from .support.launcher_upgrade import upgrade_launcher
 
 LOGGER = logging.getLogger("hospital_agent")
 _running = True
@@ -161,6 +162,7 @@ def run_agent(config: AgentConfig) -> int:
         Path(os.environ["VIEWER_AGENT_READY"]).touch()
     alive_interval = max(config.alive_polling_interval_min * 60, 1)
     next_alive_at = 0.0
+    next_launcher_check = 0.0
 
     LOGGER.info(
         "Agent started: agent_id=%s description=%s viewer_url=%s",
@@ -177,6 +179,15 @@ def run_agent(config: AgentConfig) -> int:
                 _running = False
                 break
             now_monotonic = time.monotonic()
+            if os.environ.get("VIEWER_AGENT_STOP") and now_monotonic >= next_launcher_check:
+                next_launcher_check = now_monotonic + 30
+                try:
+                    stable_root = Path(os.environ["VIEWER_AGENT_STOP"]).resolve().parent.parent
+                    if upgrade_launcher(stable_root, Path(__file__).resolve().parents[1]):
+                        _running = False
+                        break
+                except Exception:
+                    LOGGER.exception("Launcher upgrade deferred; current agent continues")
             if now_monotonic >= next_alive_at:
                 disable_expired_polling(config, state)
                 try:

@@ -17,6 +17,7 @@ from urllib.request import urlopen
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 LOG = logging.getLogger("agent_updater")
+UPDATE_CHECK_INTERVAL_SECONDS = 300
 PUBLIC_KEY = "LeZ7JxvIWyysSI0Mg7lor8aI6WYqu1kk4ptsaiQ80VU="
 MAX_PACKAGE = 20 * 1024 * 1024
 
@@ -148,17 +149,21 @@ def main():
     lock.write(b"0")
     lock.flush()
     lock.seek(0)
-    try:
-        if os.name == "nt":
-            import msvcrt
+    while True:
+        try:
+            if os.name == "nt":
+                import msvcrt
 
-            msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
-        else:
-            import fcntl
+                msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
 
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
-        return 0
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            break
+        except OSError:
+            if "--wait-for-lock" not in sys.argv:
+                return 0
+            time.sleep(1)
     if "--reconcile" in sys.argv:
         from hospital_agent.config import load_agent_config
         from hospital_agent.state import load_state, save_state
@@ -194,7 +199,7 @@ def main():
     next_check = 0.0
     while process.poll() is None:
         if time.monotonic() >= next_check:
-            next_check = time.monotonic() + 3600
+            next_check = time.monotonic() + UPDATE_CHECK_INTERVAL_SECONDS
             try:
                 candidate = prepare_update(root, active, directory, selection)
             except Exception:
