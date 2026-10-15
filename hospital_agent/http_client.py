@@ -1,7 +1,11 @@
 import json
 import logging
+import ssl
+import time
 from http.client import HTTPException
+from threading import Lock
 from typing import Any
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from .support.tls import verified_ssl_context
@@ -16,6 +20,35 @@ class ViewerClient:
         """Сохраняет базовый URL viewer и таймаут HTTP-запросов."""
         self.base_url = base_url.rstrip("/")
         self.timeout_seconds = timeout_seconds
+        self._failures: dict[str, tuple[float, int]] = {}
+        self._failure_lock = Lock()
+
+    def _failed(self, endpoint: str, exc: Exception) -> None:
+        # Never hide HTTP authorization/validation or TLS certificate failures.
+        reason = getattr(exc, "reason", exc)
+        if isinstance(exc, (HTTPError, ValueError)) or isinstance(reason, ssl.SSLError):
+            LOGGER.warning("Request %s failed: %s", endpoint, exc)
+            return
+        with self._failure_lock:
+            now = time.monotonic()
+            last, count = self._failures.get(endpoint, (now - 300, 0))
+            count += 1
+            if now - last >= 300:
+                LOGGER.warning(
+                    "Connection unavailable: endpoint=%s failures=%s error=%s", endpoint, count, exc
+                )
+                last = now
+            else:
+                LOGGER.debug("Connection retry failed: endpoint=%s error=%s", endpoint, exc)
+            self._failures[endpoint] = (last, count)
+
+    def _recovered(self, endpoint: str) -> None:
+        with self._failure_lock:
+            previous = self._failures.pop(endpoint, None)
+        if previous:
+            LOGGER.info(
+                "Connection restored: endpoint=%s failed_attempts=%s", endpoint, previous[1]
+            )
 
     def post_json(
         self,
@@ -41,9 +74,11 @@ class ViewerClient:
                 ok = 200 <= response.status < 300
                 if not ok:
                     LOGGER.warning("POST %s returned HTTP %s", url, response.status)
+                else:
+                    self._recovered(endpoint)
                 return ok
         except (OSError, HTTPException) as exc:
-            LOGGER.warning("POST %s failed: %s", url, exc)
+            self._failed(endpoint, exc)
             return False
 
     def get_json(self, endpoint: str) -> Any | None:
@@ -61,13 +96,16 @@ class ViewerClient:
                     return None
                 raw = response.read()
         except (OSError, HTTPException) as exc:
-            LOGGER.warning("GET %s failed: %s", url, exc)
+            self._failed(endpoint, exc)
             return None
 
         if not raw:
+            self._recovered(endpoint)
             return None
         try:
-            return json.loads(raw.decode("utf-8"))
+            result = json.loads(raw.decode("utf-8"))
+            self._recovered(endpoint)
+            return result
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             LOGGER.warning("GET %s returned invalid JSON: %s", url, exc)
             return None
@@ -83,7 +121,9 @@ class ViewerClient:
             with urlopen(
                 request, timeout=self.timeout_seconds, context=verified_ssl_context()
             ) as response:
-                return json.load(response)
+                result = json.load(response)
+                self._recovered(endpoint)
+                return result
         except (OSError, HTTPException, ValueError) as exc:
-            LOGGER.warning("Reconciliation request failed: %s", exc)
+            self._failed(endpoint, exc)
             return None

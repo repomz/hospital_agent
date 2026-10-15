@@ -314,7 +314,7 @@ class ProtocolMappingTests(unittest.TestCase):
                     state,
                     now=datetime(2026, 9, 25, 14, tzinfo=timezone.utc),
                 )
-            parser.assert_called_once_with(paths[1], "2")
+            parser.assert_called_once_with(paths[1], "2", retry_unreadable=True)
             self.assertFalse(state.last_protocol_recheck_slot)
 
     def test_recently_written_file_is_deferred_without_marking_processed(self):
@@ -334,6 +334,43 @@ class ProtocolMappingTests(unittest.TestCase):
             self.assertFalse(state.processed_protocols)
             self.assertIsNone(state.last_protocol_recheck_slot)
 
+    def test_unreadable_docx_retried_three_scans_before_warning(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "saving.docx"
+            path.write_bytes(b"unfinished zip")
+            os.utime(path, (0, 0))
+            state = AgentState()
+            config = SimpleNamespace(agent_id="1", state_file=root / "state.json")
+            polling = PollingConfig(True, 1, [root])
+            with patch("hospital_agent.polling.protocols.LOGGER.warning") as warning:
+                for _ in range(2):
+                    poll_operation_protocols(config, polling, object(), state)
+                    self.assertFalse(state.processed_protocols)
+                warning.assert_not_called()
+                poll_operation_protocols(config, polling, object(), state)
+                warning.assert_called_once()
+                self.assertIn(str(path.resolve()), state.processed_protocols)
+                self.assertFalse(state.unreadable_protocols)
+
+    def test_recovered_docx_is_parsed_on_next_scan(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "saving.docx"
+            path.write_bytes(b"unfinished zip")
+            os.utime(path, (0, 0))
+            state = AgentState()
+            config = SimpleNamespace(agent_id="1", state_file=root / "state.json")
+            polling = PollingConfig(True, 1, [root])
+            poll_operation_protocols(config, polling, object(), state)
+            self.assertTrue(state.unreadable_protocols)
+            with patch(
+                "hospital_agent.polling.protocols.parse_protocol", return_value=None
+            ) as parser:
+                poll_operation_protocols(config, polling, object(), state)
+            parser.assert_called_once()
+            self.assertFalse(state.unreadable_protocols)
+
     def test_file_changed_while_parsing_is_not_sent_or_marked_processed(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
@@ -344,7 +381,7 @@ class ProtocolMappingTests(unittest.TestCase):
             viewer = SimpleNamespace(post_json=MagicMock())
             config = SimpleNamespace(agent_id="1", state_file=root / "state.json")
 
-            def parse(*args):
+            def parse(*args, **kwargs):
                 path.write_bytes(b"after saving changed content")
                 return {"study_id": "1"}
 
@@ -461,7 +498,7 @@ class ProtocolMappingTests(unittest.TestCase):
 
             with patch(
                 "hospital_agent.polling.protocols.parse_protocol",
-                side_effect=lambda path, _agent_id: payloads[path.name],
+                side_effect=lambda path, _agent_id, **kwargs: payloads[path.name],
             ) as parser:
                 sent = poll_operation_protocols(
                     config,

@@ -151,7 +151,7 @@ def get_start_datetime(period_days, time_str):
     return datetime.combine(start_date, start_time)
 
 
-def read_docx_text(file_path):
+def read_docx_text(file_path, *, raise_on_error=False):
     """Извлекает текст из .docx файла"""
     try:
         with ZipFile(file_path, "r") as docx:
@@ -194,6 +194,8 @@ def read_docx_text(file_path):
 
                 return full_text
     except (BadZipFile, OSError, KeyError, ET.ParseError) as exc:
+        if raise_on_error:
+            raise
         LOGGER.warning("Cannot read DOCX file %s: %s", file_path, exc)
         return None
 

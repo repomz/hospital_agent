@@ -5,6 +5,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from xml.etree.ElementTree import ParseError
+from zipfile import BadZipFile
 
 from ..clinical_terms import operation_type, performed_assist_option, performed_ivus
 from ..config import AgentConfig, PollingConfig
@@ -377,10 +379,15 @@ def parse_protocol(
     agent_id: str,
     *,
     fallback_study_id: str = "",
+    retry_unreadable: bool = False,
 ) -> dict[str, Any] | None:
     """Парсит DOCX-протокол операции в JSON StudyRequest для /studies."""
     path = path.resolve()
-    content = read_docx_text(path)
+    content = (
+        read_docx_text(path, raise_on_error=True) if retry_unreadable else read_docx_text(path)
+    )
+    if content is None:
+        return None  # The reader already logged the specific failure.
     if not content:
         LOGGER.warning("Protocol rejected: empty or unreadable DOCX; file=%s", path.resolve())
         return None
@@ -534,7 +541,30 @@ def poll_operation_protocols(
         if previous_signature == signature and not force_recheck:
             continue
 
-        payload = parse_protocol(path, config.agent_id)
+        try:
+            payload = parse_protocol(path, config.agent_id, retry_unreadable=True)
+        except (BadZipFile, OSError, KeyError, ParseError) as exc:
+            old_signature, attempts = state.unreadable_protocols.get(state_key, (signature, 0))
+            attempts = attempts + 1 if old_signature == signature else 1
+            state.unreadable_protocols[state_key] = (signature, attempts)
+            if attempts < 3:
+                incomplete_scan = True
+                LOGGER.info(
+                    "DOCX temporarily unreadable; retry next scan (%s/3): file=%s error=%s",
+                    attempts,
+                    path,
+                    exc,
+                )
+                continue
+            LOGGER.warning(
+                "Protocol unreadable after 3 scans; manual check needed: file=%s error=%s",
+                path,
+                exc,
+            )
+            state.unreadable_protocols.pop(state_key, None)
+            _remember_protocol_signature(config, state, state_key, signature)
+            continue
+        state.unreadable_protocols.pop(state_key, None)
         try:
             if protocol_signature(path) != signature:
                 incomplete_scan = True

@@ -16,7 +16,7 @@ from .polling.protocols import (
 from .state import save_state
 
 LOGGER = logging.getLogger("hospital_agent.reconciliation")
-RECONCILIATION_REVISION = 2
+RECONCILIATION_REVISION = 3
 
 
 def write_review(config, state):

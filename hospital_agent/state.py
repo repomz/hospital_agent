@@ -27,6 +27,8 @@ class AgentState:
     last_report_date: str | None = None
     uploaded_log_hours: dict[str, str] = field(default_factory=dict)
     reconciliation: dict[str, Any] = field(default_factory=dict)
+    # Transient retries are intentionally not persisted as processed receipts.
+    unreadable_protocols: dict[str, tuple[str, int]] = field(default_factory=dict)
     lock: Any = field(default_factory=RLock, repr=False, compare=False)
 
 

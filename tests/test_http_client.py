@@ -5,6 +5,32 @@ from hospital_agent.http_client import ViewerClient
 
 
 class ViewerClientTests(unittest.TestCase):
+    def test_network_warnings_are_bounded_and_recovery_logged(self):
+        client = ViewerClient("http://viewer.example", 5)
+        with (
+            patch("hospital_agent.http_client.time.monotonic", side_effect=[0, 60, 301]),
+            patch("hospital_agent.http_client.LOGGER.warning") as warning,
+            patch("hospital_agent.http_client.LOGGER.info") as info,
+        ):
+            for _ in range(3):
+                client._failed("/agent_status", TimeoutError("timeout"))
+            self.assertEqual(warning.call_count, 2)
+            client._recovered("/agent_status")
+            info.assert_called_once()
+            self.assertEqual(info.call_args.args[-1], 3)
+            self.assertFalse(client._failures)
+
+    def test_certificate_and_http_errors_are_never_suppressed(self):
+        import ssl
+        from urllib.error import HTTPError, URLError
+
+        client = ViewerClient("http://viewer.example", 5)
+        with patch("hospital_agent.http_client.LOGGER.warning") as warning:
+            for _ in range(3):
+                client._failed("/studies", HTTPError("url", 401, "denied", {}, None))
+                client._failed("/studies", URLError(ssl.SSLCertVerificationError("certificate")))
+            self.assertEqual(warning.call_count, 6)
+
     def test_invalid_utf8_response_is_a_nonfatal_failure(self):
         client = ViewerClient("http://viewer.example", 5)
         with patch("hospital_agent.http_client.urlopen") as request:
