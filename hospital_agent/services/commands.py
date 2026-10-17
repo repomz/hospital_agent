@@ -252,6 +252,8 @@ def get_dicom_study(
         raise ValueError(f"get_{modality.lower()} requires a valid DICOM study_uid")
 
     storage = YandexStorage()
+    progress = payload.get("_progress") or (lambda *args: None)
+    storage.progress = progress
     storage.check_connection()
     pacs_config = load_pacs_config(str(config.pacs_config_path))
     local_config = pacs_config.setdefault("local", {})
@@ -263,6 +265,7 @@ def get_dicom_study(
         with tempfile.TemporaryDirectory(prefix="ha-") as tmp_dir:
             local_config["output_dir"] = tmp_dir
             client = PACSClient(pacs_config)
+            client.progress = progress
             download = client.download_study(study_uid, lookup_metadata=False)
             if not download.get("ok"):
                 raise RuntimeError(
@@ -288,6 +291,7 @@ def get_dicom_study(
                 raise RuntimeError("PACS study has no valid StudyDate")
 
             attempt_folder = f"{download['yandex_folder']}_{uuid.uuid4().hex[:12]}"
+            progress("upload", 0, download["received_files"])
             delete_at = datetime.now(timezone.utc) + timedelta(days=3)
             _queue_yandex_cleanup(
                 config,
@@ -330,6 +334,7 @@ def get_dicom_study(
             # re-imports an already registered study instead of returning it
             # before PACS delivery.
             endpoint = f"/{modality.lower()}_studies?force_pacs=true"
+            progress("import", 0, download["received_files"], uploaded["uploaded_bytes"])
             if not viewer.post_json(
                 endpoint,
                 study_payload,

@@ -154,6 +154,9 @@ class YandexStorage:
                 uploaded_files += 1
                 uploaded_bytes += file_size
                 uploaded_objects.append(uploaded_object)
+                getattr(self, "progress", lambda *args: None)(
+                    "upload", uploaded_files, len(files), uploaded_bytes
+                )
 
         return {
             "yandex_folder": yandex_folder,

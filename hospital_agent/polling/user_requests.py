@@ -1,4 +1,5 @@
 import logging
+from contextlib import nullcontext
 from typing import Any
 from urllib.parse import urlencode
 
@@ -117,14 +118,22 @@ def run_user_request(
         return False
 
     try:
-        result = execute_user_command(
-            config,
-            command,
-            request_payload,
-            current_request_id,
-            viewer,
-            state,
+        from ..transfer_progress import TransferProgress
+
+        tracker = (
+            TransferProgress(viewer, config.agent_id, current_request_id)
+            if command in {"get_ct", "get_xa", "send_ct_to_pacs", "send_xa_to_pacs"}
+            else nullcontext(None)
         )
+        with tracker as progress:
+            result = execute_user_command(
+                config,
+                command,
+                {**request_payload, "_progress": progress},
+                current_request_id,
+                viewer,
+                state,
+            )
         if result is None:
             LOGGER.info("Ignoring unsupported user request command: %s", command)
             delivery = _result_delivery(

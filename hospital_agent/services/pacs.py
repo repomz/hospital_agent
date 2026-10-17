@@ -316,6 +316,9 @@ class PACSClient:
             received_bytes += file_size
             received_count += 1
             received_sop_uids.add(sop_instance_uid)
+            getattr(self, "progress", lambda *args: None)(
+                "download", received_count, expected_instances, received_bytes
+            )
             return 0x0000
 
         ae = self._create_ae(include_storage=True)
