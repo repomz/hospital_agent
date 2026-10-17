@@ -29,6 +29,7 @@ class AgentState:
     reconciliation: dict[str, Any] = field(default_factory=dict)
     # Transient retries are intentionally not persisted as processed receipts.
     unreadable_protocols: dict[str, tuple[str, int]] = field(default_factory=dict)
+    protocol_sources: dict[str, dict[str, str]] = field(default_factory=dict)
     lock: Any = field(default_factory=RLock, repr=False, compare=False)
 
 
@@ -67,6 +68,7 @@ def load_state(path: Path) -> AgentState:
         raw_processed_protocol_keys = []
 
     return AgentState(
+        protocol_sources=raw.get("protocol_sources", {}),
         processed_protocols={
             str(key): str(value) for key, value in raw.get("processed_protocols", {}).items()
         },
@@ -110,6 +112,7 @@ def save_state(path: Path, state: AgentState) -> None:
     with state.lock:
         path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
+            "protocol_sources": state.protocol_sources,
             "processed_protocols": state.processed_protocols,
             "processed_protocol_keys": state.processed_protocol_keys,
             "last_protocol_recheck_slot": state.last_protocol_recheck_slot,

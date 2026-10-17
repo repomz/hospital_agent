@@ -11,6 +11,7 @@ from zipfile import BadZipFile
 from ..clinical_terms import operation_type, performed_assist_option, performed_ivus
 from ..config import AgentConfig, PollingConfig
 from ..http_client import ViewerClient
+from ..protocol_sources import attach_protocol_source, publish_source_inventory
 from ..services.operation_reports import (
     parse_operation_datetime,
     parse_operation_description,
@@ -583,6 +584,8 @@ def poll_operation_protocols(
             _remember_protocol_signature(config, state, state_key, signature)
             continue
 
+        attach_protocol_source(config, state, path, payload)
+
         operation_datetime = _operation_datetime_from_payload(payload, local_now.tzinfo)
         if operation_datetime is None:
             LOGGER.warning(
@@ -609,7 +612,7 @@ def poll_operation_protocols(
             continue
 
         identity = protocol_identity(payload)
-        if identity in known_protocol_keys and not signature_changed:
+        if identity in known_protocol_keys and not signature_changed and "source" not in payload:
             _remember_protocol_signature(config, state, state_key, signature)
             continue
 
@@ -629,6 +632,10 @@ def poll_operation_protocols(
                 payload["study_id"],
                 path,
             )
+        else:
+            # Do not retire the old path of a moved/edited document before its
+            # replacement has actually reached the server.
+            incomplete_scan = True
     if force_recheck and not incomplete_scan:
         with state.lock:
             state.last_protocol_recheck_slot = recheck_slot
@@ -643,4 +650,6 @@ def poll_operation_protocols(
             incomplete_scan,
             force_recheck,
         )
+    if not incomplete_scan:
+        publish_source_inventory(config, polling, state, viewer)
     return sent_count

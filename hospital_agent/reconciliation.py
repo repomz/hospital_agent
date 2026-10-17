@@ -13,10 +13,11 @@ from .polling.protocols import (
     protocol_identity,
     protocol_signature,
 )
+from .protocol_sources import attach_protocol_source
 from .state import save_state
 
 LOGGER = logging.getLogger("hospital_agent.reconciliation")
-RECONCILIATION_REVISION = 3
+RECONCILIATION_REVISION = 4
 
 
 def write_review(config, state):
@@ -43,8 +44,9 @@ def reconcile_year(config, viewer, state, stopping=lambda: False):
         if sync.get("revision") != RECONCILIATION_REVISION:
             # Revisit unresolved files once after the server matching fix. Keep
             # confirmed receipts and all independent XA/request state intact.
-            for key in set(sync.get("review", {})) | set(sync.get("blocked", {})):
-                sync["files"].pop(key, None)
+            # Register provenance once for existing receipts, without uploading
+            # their clinical text or changing manually edited server fields.
+            sync["files"] = {}
             sync["revision"] = RECONCILIATION_REVISION
             sync["complete"] = False
     if sync.get("complete"):
@@ -76,7 +78,8 @@ def reconcile_year(config, viewer, state, stopping=lambda: False):
                 "items": [
                     {
                         k: p.get(k, 0 if k == "room" else "")
-                        for k in ("study_id", "patient", "room", "time_beginning")
+                        for k in ("study_id", "patient", "room", "time_beginning", "source")
+                        if k != "source" or k in p
                     }
                     for _, _, p in batch
                 ],
@@ -119,6 +122,17 @@ def reconcile_year(config, viewer, state, stopping=lambda: False):
                 )
                 remember(path, signature)
             elif status == "present":
+                previous_signature = state.processed_protocols.get(key)
+                moved_source = any(
+                    other_path != key
+                    and value.get("file_id") == payload.get("source", {}).get("file_id")
+                    for other_path, value in state.protocol_sources.items()
+                )
+                if (previous_signature and previous_signature != signature) or moved_source:
+                    if not viewer.post_json("/studies", payload):
+                        sync["review"][key] = "Изменённый протокол не обновлён: повторная попытка"
+                        success = False
+                        continue
                 sync.get("blocked", {}).pop(key, None)
                 sync["review"].pop(key, None)
                 remember(path, signature, payload)
@@ -165,6 +179,8 @@ def reconcile_year(config, viewer, state, stopping=lambda: False):
                 deferred = True
                 continue
             payload = parse_protocol(path, config.agent_id)
+            if payload is not None:
+                attach_protocol_source(config, state, path, payload)
             if protocol_signature(path) != signature:
                 deferred = True
                 continue

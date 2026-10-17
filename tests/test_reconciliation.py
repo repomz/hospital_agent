@@ -94,6 +94,23 @@ class ReconciliationTests(unittest.TestCase):
         self.assertFalse(result)
         viewer.post_json.assert_not_called()
 
+    def test_baseline_refresh_sends_known_file_edits_instead_of_silently_accepting(self):
+        _, path, config, viewer, state, _ = self.run_case("present")
+        path.write_bytes(b"edited clinical text")
+        os.utime(path, (0, 0))
+        state.reconciliation["revision"] = 3
+        payload = {
+            "study_id": "1",
+            "patient": "Иванов Иван Иванович",
+            "room": 1,
+            "name_operation": "КАГ corrected",
+            "time_beginning": datetime.now().astimezone().replace(hour=0, minute=0).isoformat(),
+        }
+        with patch("hospital_agent.reconciliation.parse_protocol", return_value=payload):
+            self.assertTrue(reconcile_year(config, viewer, state))
+        viewer.post_json.assert_called_once()
+        self.assertIn("source", viewer.post_json.call_args.args[1])
+
     def test_failed_upload_is_not_marked_processed(self):
         _, path, _, _, state, result = self.run_case("missing", False)
         self.assertFalse(result)
