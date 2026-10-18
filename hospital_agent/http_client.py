@@ -110,7 +110,9 @@ class ViewerClient:
             LOGGER.warning("GET %s returned invalid JSON: %s", url, exc)
             return None
 
-    def post_json_response(self, endpoint: str, payload: dict[str, Any]) -> Any | None:
+    def post_json_response(
+        self, endpoint: str, payload: dict[str, Any], timeout_seconds: int | None = None
+    ) -> Any | None:
         request = Request(
             self.base_url + endpoint,
             data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
@@ -119,7 +121,7 @@ class ViewerClient:
         )
         try:
             with urlopen(
-                request, timeout=self.timeout_seconds, context=verified_ssl_context()
+                request, timeout=timeout_seconds or self.timeout_seconds, context=verified_ssl_context()
             ) as response:
                 result = json.load(response)
                 self._recovered(endpoint)

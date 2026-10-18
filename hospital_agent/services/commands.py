@@ -44,6 +44,12 @@ def execute_user_command(
     state: AgentState | None = None,
 ) -> dict[str, Any] | None:
     """Выполняет команду backend по каноническому полю command."""
+    if command == "send_protocol_file":
+        from .protocol_file import send_protocol_file
+
+        if viewer is None:
+            raise RuntimeError("send_protocol_file requires viewer")
+        return send_protocol_file(config, payload, request_id, viewer)
     if command == "update_agent_config":
         changes = payload.get("configuration")
         if not isinstance(changes, dict) or state is None:

@@ -15,6 +15,7 @@ def build_alive_payload(config: AgentConfig, errors: list[str] | None = None) ->
         "configuration": {
             "version": __version__,
             "remote_configuration": True,
+            "remote_protocol_files": True,
             "description": config.description,
             "log_dir": str(config.log_dir),
             "state_file": str(config.state_file),
