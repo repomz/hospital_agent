@@ -121,7 +121,9 @@ class ViewerClient:
         )
         try:
             with urlopen(
-                request, timeout=timeout_seconds or self.timeout_seconds, context=verified_ssl_context()
+                request,
+                timeout=timeout_seconds or self.timeout_seconds,
+                context=verified_ssl_context(),
             ) as response:
                 result = json.load(response)
                 self._recovered(endpoint)

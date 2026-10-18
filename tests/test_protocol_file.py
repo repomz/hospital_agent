@@ -17,7 +17,9 @@ class ProtocolFileTests(unittest.TestCase):
             path = Path(root) / "Ошибка.docx"
             for content in [b"", b"not a valid docx"]:
                 path.write_bytes(content)
-                result = send_protocol_file(config, {"path": str(path), "upload_token": "token"}, "request", viewer)
+                result = send_protocol_file(
+                    config, {"path": str(path), "upload_token": "token"}, "request", viewer
+                )
                 args, kwargs = viewer.post_json_response.call_args
                 self.assertEqual(args[0], "/agent_files/request")
                 self.assertEqual(base64.b64decode(args[1]["content"]), content)
