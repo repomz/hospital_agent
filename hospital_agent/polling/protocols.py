@@ -359,7 +359,7 @@ def parse_operation_datetime_flexible(content: str) -> datetime | None:
 
 def parse_surgeon(content: str) -> str:
     """Извлекает хирурга после подписи 'Опер.:_______'."""
-    match = re.search(r"Опер\.\s*:\s*_*\s*([^\n\r]+)", content, flags=re.IGNORECASE)
+    match = re.search(r"Опер\.[ \t]*:[ \t_]*([^\n\r]*)", content, flags=re.IGNORECASE)
     return _normalize_text(match.group(1)) if match else ""
 
 
@@ -493,6 +493,11 @@ def parse_protocol(
     parsed_birth = parse_date_value(birth)
     if parsed_birth and operation_datetime and parsed_birth <= operation_datetime.date():
         payload["birth_date"] = parsed_birth.isoformat()
+        if not str(age).isdigit():
+            day = operation_datetime.date()
+            payload["age"] = day.year - parsed_birth.year - (
+                (day.month, day.day) < (parsed_birth.month, parsed_birth.day)
+            )
     return payload
 
 

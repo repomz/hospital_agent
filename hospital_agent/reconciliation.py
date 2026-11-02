@@ -17,7 +17,7 @@ from .protocol_sources import attach_protocol_source
 from .state import save_state
 
 LOGGER = logging.getLogger("hospital_agent.reconciliation")
-RECONCILIATION_REVISION = 4
+RECONCILIATION_REVISION = 5
 
 
 def write_review(config, state):
@@ -42,7 +42,7 @@ def reconcile_year(config, viewer, state, stopping=lambda: False):
             state.reconciliation = {"year": year, "files": {}, "review": {}, "complete": False}
         sync = state.reconciliation
         if sync.get("revision") != RECONCILIATION_REVISION:
-            # Revisit unresolved files once after the server matching fix. Keep
+            # Revisit unresolved files once after parser/schema changes. Keep
             # confirmed receipts and all independent XA/request state intact.
             # Register provenance once for existing receipts, without uploading
             # their clinical text or changing manually edited server fields.

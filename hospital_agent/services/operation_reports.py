@@ -82,6 +82,19 @@ def strip_birth_date(value):
 
 def parse_birth_date_from_content(content):
     """Извлекает дату рождения пациента из протокола операции."""
+    labelled = re.search(r"Дата\s+рождения\s*:[ \t]*([^\n\r]+)", content, re.I)
+    if labelled:
+        numeric = extract_birth_date(labelled[1])
+        if numeric:
+            return numeric
+        months = "января февраля марта апреля мая июня июля августа сентября октября ноября декабря".split()
+        written = re.search(
+            r"[«\"“]?\s*(\d{1,2})\s*[»\"”]?\s+([а-яё]+)\s+(\d{4})", labelled[1], re.I
+        )
+        if written and written[2].lower() in months:
+            value = f"{int(written[1]):02d}.{months.index(written[2].lower()) + 1:02d}.{written[3]}"
+            if parse_date_value(value):
+                return value
     match = re.search(
         r"Ф\.И\.О\.\s*больного\s*:\s*([^\n\r]*)",
         content,
@@ -151,6 +164,25 @@ def get_start_datetime(period_days, time_str):
     return datetime.combine(start_date, start_time)
 
 
+def normalize_protocol_template(content):
+    """Map explicit labels of the November 2026 form to the existing parser vocabulary.
+
+    Values and absent journal identifiers are never inferred from filenames.
+    Keep the detailed legacy operation title if the document still contains it.
+    """
+    labels = {
+        r"Фамилия,\s*имя,\s*отчество(?:\s*\(при наличии\))?": "Ф.И.О. больного",
+        r"Дата\s+и\s+время\s+начала\s+оперативного\s+вмешательства\s*\(операции\)": "Дата и время операции",
+        r"Продолжительность\s+оперативного\s+вмешательства\s*\(операции\)": "Длительность операции",
+        r"Наименование\s+оперативного\s+вмешательства\s*\(операции\)": "Операция",
+        r"Описание\s+оперативного\s+вмешательства\s*\(операции\)": "Описание операции",
+        r"Оперирующий\s+врач": "Опер.",
+    }
+    for pattern, replacement in labels.items():
+        content = re.sub(r"(?m)^[ \t]*" + pattern + r"\s*:", replacement + ":", content, flags=re.I)
+    return content
+
+
 def read_docx_text(file_path, *, raise_on_error=False):
     """Извлекает текст из .docx файла"""
     try:
@@ -192,7 +224,7 @@ def read_docx_text(file_path, *, raise_on_error=False):
                 )
                 full_text = re.sub(r"(Ф\.И\.О\. больного:[^\n]+?)(Диагноз)", r"\1\n\2", full_text)
 
-                return full_text
+                return normalize_protocol_template(full_text)
     except (BadZipFile, OSError, KeyError, ET.ParseError) as exc:
         if raise_on_error:
             raise
@@ -562,7 +594,10 @@ def parse_operation_description(content):
     match = re.search(
         r"Описание\s+операции\s*:\s*(.*?)"
         r"(?=\s*(?:Исход\s*:|Рек-но\s*:|Рекомендации\s*:|Рекомендовано\s*:|"
-        r"Расходные\s+материалы|Опер\.\s*:)|$)",
+        r"Расходные\s+материалы|Опер\.\s*:|"
+        r"Осложнения,\s*возникшие\s+в\s+ходе\s+оперативного|"
+        r"Использование\s+медицинских\s+изделий|Подсчет\s+операционного\s+материала|"
+        r"Вид\s+анестезиологического\s+пособия|Диагноз\s+после\s+оперативного)|$)",
         content,
         flags=re.IGNORECASE | re.DOTALL,
     )
