@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 from xml.sax.saxutils import escape
 from zipfile import ZipFile
 
-from hospital_agent.polling.protocols import parse_protocol
+from hospital_agent.polling.protocols import parse_protocol, resolve_generic_template_name
 from hospital_agent.services.operation_reports import (
     normalize_protocol_template,
     parse_birth_date_from_content,
@@ -29,6 +29,38 @@ FORM = """Фамилия, имя, отчество (при наличии): Ив
 
 
 class NewProtocolTemplateTests(unittest.TestCase):
+    def test_generic_service_names_use_only_performed_target(self):
+        cases = [
+            (
+                "Локальная эндоваскулярная трансартериальная тромбоэкстракция",
+                "Выполнена церебральная ангиография. Выполнена тромбоаспирация М1 слева.",
+                "ЦАГ. ТА",
+            ),
+            (
+                "Установка стента в сосуд",
+                "Доступ через правую бедренную артерию. Выполнена имплантация стента Express от устья правой подключичной артерии.",
+                "Стентирование артерий в/к",
+            ),
+            (
+                "Эмболизация сосудов микроэмболами",
+                "Выполнена эмболизация маточных артерий слева и справа.",
+                "ЭМА",
+            ),
+            (
+                "Установка стента в сосуд",
+                "Доступ через правую бедренную артерию. Ранее выполнено стентирование подключичной артерии.",
+                "Установка стента в сосуд",
+            ),
+            (
+                "Установка стента в сосуд",
+                "Безуспешная попытка стентирования подключичной артерии.",
+                "Установка стента в сосуд",
+            ),
+        ]
+        for name, description, expected in cases:
+            with self.subTest(name=name, description=description):
+                self.assertEqual(resolve_generic_template_name(name, description), expected)
+
     def parse(self, content):
         with TemporaryDirectory() as folder:
             path = Path(folder) / "synthetic.docx"

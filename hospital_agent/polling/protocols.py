@@ -375,6 +375,72 @@ def classify_study_type(operation: str) -> str:
     return operation_type(operation)
 
 
+def resolve_generic_template_name(name: str, description: str) -> str:
+    """Refine generic service names only with affirmative intervention evidence.
+
+    Access vessels, diagnostic sentences, history and unsuccessful attempts must
+    not supply the target of an intervention.
+    """
+    from ..operation_types import FAILURE, HISTORY, performed
+
+    current = operation_type(name, description)
+    if current not in {"стент_другие", "тромбаспирация", "эмболизация"}:
+        return name
+    candidates = set()
+    for clause in re.split(r"[;!?\n]+|(?<!\d)\.(?!\d)", description):
+        lower = clause.lower()
+        if re.search(FAILURE, lower) or re.search(HISTORY, lower):
+            continue
+        if current == "стент_другие" and not performed("", lower, "stent"):
+            continue
+        if current == "тромбаспирация" and not re.search(
+            r"тромб(?:о)?(?:аспирац|экстракц)|\bт[аэ]\b", lower
+        ):
+            continue
+        if current == "эмболизация" and not re.search(
+            r"(?:выполн\w*|проведен\w*)\s+эмболизац|эмболизирован", lower
+        ):
+            continue
+        candidate = operation_type(clause, clause)
+        if current == "стент_другие" and candidate.startswith("стент_") and candidate != current:
+            candidates.add(candidate)
+        elif current == "тромбаспирация" and candidate == "инсульт":
+            candidates.add(candidate)
+        elif current == "эмболизация" and candidate in {
+            "эма",
+            "аневризма",
+            "эмболизация периферии",
+        }:
+            candidates.add(candidate)
+    if len(candidates) != 1:
+        return name
+    result = candidates.pop()
+    titles = {
+        "стент_кор": "Стентирование коронарных артерий",
+        "стент_вк": "Стентирование артерий в/к",
+        "стент_нк": "Стентирование артерий н/к",
+        "стент_вса": "Стентирование ВСА",
+        "стент_па": "Стентирование позвоночной артерии",
+        "стент_почки": "Стентирование почечной артерии",
+        "эма": "ЭМА",
+        "аневризма": "Эмболизация аневризмы",
+        "эмболизация периферии": "Эмболизация периферических артерий",
+    }
+    if result == "инсульт":
+        method = (
+            "ТЭ"
+            if re.search(r"тромб(?:о)?экстракц", description, re.I)
+            and re.search(r"ретривер", description, re.I)
+            else "ТА"
+        )
+        return (
+            f"ЦАГ. {method}"
+            if re.search(r"церебральн|\bЦАГ\b", description, re.I)
+            else f"{method} церебральных артерий"
+        )
+    return titles.get(result, name)
+
+
 def parse_protocol(
     path: Path,
     agent_id: str,
@@ -406,6 +472,10 @@ def parse_protocol(
     if not operation and parse_operation_description(content):
         operation = "не указано"
     full_operation = parse_full_operation_name(content) or operation
+    if labelled_name and not parse_full_operation_name(content) and full_operation:
+        full_operation = resolve_generic_template_name(
+            full_operation, parse_operation_description(content)
+        )
     if not full_operation:
         LOGGER.warning("Cannot parse operation name for %s", path)
         return None

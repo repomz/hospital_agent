@@ -17,7 +17,7 @@ from .protocol_sources import attach_protocol_source
 from .state import save_state
 
 LOGGER = logging.getLogger("hospital_agent.reconciliation")
-RECONCILIATION_REVISION = 6
+RECONCILIATION_REVISION = 7
 
 
 def write_review(config, state):
@@ -47,6 +47,7 @@ def reconcile_year(config, viewer, state, stopping=lambda: False):
             # Register provenance once for existing receipts, without uploading
             # their clinical text or changing manually edited server fields.
             sync["files"] = {}
+            sync["refresh_provisional"] = True
             sync["revision"] = RECONCILIATION_REVISION
             sync["complete"] = False
     if sync.get("complete"):
@@ -128,7 +129,9 @@ def reconcile_year(config, viewer, state, stopping=lambda: False):
                     and value.get("file_id") == payload.get("source", {}).get("file_id")
                     for other_path, value in state.protocol_sources.items()
                 )
-                if (previous_signature and previous_signature != signature) or moved_source:
+                if (previous_signature and previous_signature != signature) or moved_source or (
+                    sync.get("refresh_provisional") and payload["study_id"].startswith("pending-")
+                ):
                     if not viewer.post_json("/studies", payload):
                         sync["review"][key] = "Изменённый протокол не обновлён: повторная попытка"
                         success = False
@@ -206,6 +209,8 @@ def reconcile_year(config, viewer, state, stopping=lambda: False):
     if not flush():
         return False
     sync["complete"] = not deferred
+    if sync["complete"]:
+        sync.pop("refresh_provisional", None)
     save_state(config.state_file, state)
     write_review(config, state)
     LOGGER.info(
