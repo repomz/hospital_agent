@@ -65,13 +65,31 @@ class NewProtocolTemplateTests(unittest.TestCase):
 
     def test_missing_journal_number_is_not_fabricated(self):
         with self.assertLogs("hospital_agent", level="WARNING") as logs:
-            self.assertIsNone(self.parse(FORM))
-        self.assertIn("missing=study_id", " ".join(logs.output))
+            first = self.parse(FORM)
+            second = self.parse(FORM)
+        self.assertTrue(first["study_id"].startswith("pending-"))
+        self.assertEqual(first["study_id"], second["study_id"])
+        self.assertEqual(first["patient"], "Иванов Иван Иванович")
+        self.assertIn("without journal number", " ".join(logs.output))
 
     def test_blank_surgeon_does_not_capture_next_label(self):
         content = FORM.replace("Идрисов Марат Загидович, врач", "")
         payload = self.parse("Операция: 123 Операционная № 1. Стентирование ПНА\n" + content)
         self.assertEqual(payload["surgeon"], "не указано")
+
+    def test_explicit_aneurysm_procedure_is_not_replaced_by_diagnostic_angiography(self):
+        form = FORM.replace(
+            "Стентирование коронарной артерии",
+            "Эндоваскулярная окклюзия полости аневризмы с помощью микроспиралей",
+        )
+        form = form.replace(
+            "Выполнено ВСУЗИ. Имплантирован стент в ПНА.",
+            "Выполнена церебральная ангиография. Аневризма эмболизирована микроспиралями.",
+        )
+        with self.assertLogs("hospital_agent", level="WARNING"):
+            payload = self.parse(form)
+        self.assertEqual(payload["study_type"], "аневризма")
+        self.assertIn("аневризмы", payload["name_operation"])
 
     def test_birth_date_months_and_invalid_values(self):
         months = "января февраля марта апреля мая июня июля августа сентября октября ноября декабря".split()

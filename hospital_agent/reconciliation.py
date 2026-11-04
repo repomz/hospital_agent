@@ -17,7 +17,7 @@ from .protocol_sources import attach_protocol_source
 from .state import save_state
 
 LOGGER = logging.getLogger("hospital_agent.reconciliation")
-RECONCILIATION_REVISION = 5
+RECONCILIATION_REVISION = 6
 
 
 def write_review(config, state):

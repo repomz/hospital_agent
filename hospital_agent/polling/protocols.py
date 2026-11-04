@@ -397,7 +397,14 @@ def parse_protocol(
     patient, age = parse_patient_full_from_content(content)
     if not patient:
         patient, age = parse_patient_flexible(content)
-    operation = parse_operation_from_content(content) or parse_operation_name_flexible(content)
+    labelled_name = re.search(r"(?m)^Наименование операции:[ \t]*([^\n\r]+)", content, re.I)
+    operation = (
+        (labelled_name[1].strip() if labelled_name else None)
+        or parse_operation_from_content(content)
+        or parse_operation_name_flexible(content)
+    )
+    if not operation and parse_operation_description(content):
+        operation = "не указано"
     full_operation = parse_full_operation_name(content) or operation
     if not full_operation:
         LOGGER.warning("Cannot parse operation name for %s", path)
@@ -410,6 +417,14 @@ def parse_protocol(
         LOGGER.warning("Operation name became empty after normalization for %s", path)
         return None
     study_id = parse_study_id(content) or fallback_study_id
+    if not study_id and patient and operation_datetime and parse_operation_description(content):
+        # Technical identity, explicitly NOT a journal number. Stable across
+        # restarts and moving the source; later edits update the source receipt.
+        identity = (
+            f"{agent_id}|{patient.casefold().replace('ё', 'е')}|{operation_datetime.isoformat()}"
+        )
+        study_id = "pending-" + str(uuid.uuid5(uuid.NAMESPACE_URL, identity))
+        LOGGER.warning("Incomplete protocol accepted without journal number; file=%s", path)
     required_fields = {
         "operation_datetime": operation_datetime,
         "patient": patient,
@@ -495,8 +510,10 @@ def parse_protocol(
         payload["birth_date"] = parsed_birth.isoformat()
         if not str(age).isdigit():
             day = operation_datetime.date()
-            payload["age"] = day.year - parsed_birth.year - (
-                (day.month, day.day) < (parsed_birth.month, parsed_birth.day)
+            payload["age"] = (
+                day.year
+                - parsed_birth.year
+                - ((day.month, day.day) < (parsed_birth.month, parsed_birth.day))
             )
     return payload
 
